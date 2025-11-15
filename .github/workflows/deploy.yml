@@ -1,8 +1,8 @@
 # ===================================================================
 # 📦 GitHub Actions Workflow: Auto-deploy Applab Backend to Server
 # ===================================================================
-# This workflow automatically connects to your Ubuntu server
-# via SSH and runs your deployment script whenever you push code
+# This workflow automatically connects to Ubuntu server
+# via SSH and runs deployment script whenever push code
 # to the `master` branch of your backend repository.
 # ===================================================================
 
@@ -26,29 +26,21 @@ jobs:
 
     steps:
       # ---------------------------------------------------------
-      # Step 1️⃣: Checkout the latest code from your repository
+      # Step 1️⃣: Checkout the latest code from repository
       # ---------------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
       # ---------------------------------------------------------
-      # Step 2️⃣: SSH into your server and run deployment script
+      # Step 2️⃣: SSH into server and run deployment script
       # ---------------------------------------------------------
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: applab-api.arnabkhan.in           # Your server’s public IP or domain (set as a secret)
+          host: applab-api.arnabkhan.in           # Server's public IP or domain
           username: root                          # Usually "root" or another user
           key: ${{ secrets.SERVER_SSH_KEY }}      # Private SSH key stored securely in GitHub Secrets
           script: |                               # Commands to run remotely
-            cd /root/My_Scripts/Applications/applab      # Go to where your deploy script is stored
+            cd /root/My_Scripts/Applications/applab      # Go to where deploy script is stored
             chmod +x deploy-applab-backend.sh            # Ensure script is executable
-            ./deploy-applab-backend.sh                   # Run your backend deployment script
-
-# ===================================================================
-# 📝 Summary of required GitHub Secrets
-# ===================================================================
-# SERVER_HOST      → Your server IP or domain (e.g., applab-api.arnabkhan.in)
-# SERVER_USER      → The SSH username (e.g., root)
-# SERVER_SSH_KEY   → The private key from ~/.ssh/github_deploy_key_applab_backen
-# ===================================================================
+            ./deploy-applab-backend.sh                   # Run backend deployment script
