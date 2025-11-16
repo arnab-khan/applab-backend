@@ -7,6 +7,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.applab.applab_backend.auth.model.UserModel;
 import com.applab.applab_backend.auth.service.UserService;
+import com.applab.applab_backend.common.views.SerializationJsonViews;
+import com.fasterxml.jackson.annotation.JsonView;
 
 import jakarta.validation.Valid;
 
@@ -21,12 +23,14 @@ public class AuthController {
 
     // Endpoint to handle user signup
     @PostMapping("/signup")
+    @JsonView(SerializationJsonViews.MyClass.class) // Return only public fields
     public UserModel addUser(@Valid @RequestBody UserModel userDetails) {
         return userService.createUser(userDetails); // Call service to hash password & save user in database
     }
 
     // Endpoint to handle user login
     @PostMapping("/login")
+    @JsonView(SerializationJsonViews.MyClass.class) // Return only public fields
     public UserModel loginUser(@RequestBody UserModel loginDetails) {
         return userService.loginUser(loginDetails.getUsername(), loginDetails.getPassword()); // Call service to login user
     }

@@ -1,5 +1,8 @@
 package com.applab.applab_backend.auth.model;
 
+import com.applab.applab_backend.common.views.SerializationJsonViews;
+import com.fasterxml.jackson.annotation.JsonView;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -20,18 +23,21 @@ public class UserModel {
 
     @NotBlank(message = "Name is required")
     @Size(min = 3, max = 50, message = "Name must be 3-50 characters")
+    @JsonView(SerializationJsonViews.MyClass.class) // Visible in public view
     private String name;
 
     @Column(nullable = false, unique = true)
     @NotBlank(message = "Username is required")
     @Size(min = 1, max = 20, message = "Username must be 1-20 characters")
     @Pattern(regexp = "^[a-zA-Z0-9_-]+$", message = "Username can only contain letters, numbers, underscores, and hyphens")
+    @JsonView(SerializationJsonViews.MyClass.class) // Visible in public view
     private String username;
 
     @Column(nullable = false)
     @NotBlank(message = "Password is required")
     @Size(min = 6, max = 100, message = "Password must be at least 6 characters long and up to 100 characters")
     @Pattern(regexp = "^[^\\s]+$", message = "Password cannot contain spaces")
+    @JsonView(SerializationJsonViews.MyChild.class) // Visible only in internal view
     private String password;
 
     // Getters and Setters
