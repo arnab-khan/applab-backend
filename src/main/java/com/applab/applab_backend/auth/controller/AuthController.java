@@ -1,5 +1,7 @@
 package com.applab.applab_backend.auth.controller;
 
+import java.util.Map;
+
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -10,6 +12,7 @@ import com.applab.applab_backend.auth.service.UserService;
 import com.applab.applab_backend.common.views.SerializationJsonViews;
 import com.fasterxml.jackson.annotation.JsonView;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 @RestController
@@ -18,20 +21,20 @@ public class AuthController {
     private final UserService userService;
 
     public AuthController(UserService userService) {
-        this.userService = userService; // injects UserService via constructor
+        this.userService = userService;
     }
 
     // Endpoint to handle user signup
     @PostMapping("/signup")
-    @JsonView(SerializationJsonViews.MyClass.class) // Return only public fields
-    public UserModel addUser(@Valid @RequestBody UserModel userDetails) {
-        return userService.createUser(userDetails); // Call service to hash password & save user in database
+    @JsonView(SerializationJsonViews.MyClass.class)
+    public Map<String, Object> addUser(@Valid @RequestBody UserModel userDetails, HttpServletRequest request) {
+        return userService.createUser(userDetails, request);
     }
 
     // Endpoint to handle user login
     @PostMapping("/login")
-    @JsonView(SerializationJsonViews.MyClass.class) // Return only public fields
-    public UserModel loginUser(@RequestBody UserModel loginDetails) {
-        return userService.loginUser(loginDetails.getUsername(), loginDetails.getPassword()); // Call service to login user
+    @JsonView(SerializationJsonViews.MyClass.class)
+    public Map<String, Object> loginUser(@RequestBody UserModel loginDetails, HttpServletRequest request) {
+        return userService.loginUser(loginDetails, request);
     }
 }
