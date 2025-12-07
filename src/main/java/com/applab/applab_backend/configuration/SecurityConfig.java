@@ -36,7 +36,7 @@ public class SecurityConfig {
                         .requestMatchers(request -> request.getRequestURI().contains("/admin/")).hasRole("ADMIN")
 
                         // Allow users with ROLE_USER or ROLE_ADMIN to access URLs containing '/user/' This ensures admins can access user endpoints as well
-                        .requestMatchers("/user/**").hasAnyRole("USER", "ADMIN")
+                        .requestMatchers("/user/**","/todo/**").hasAnyRole("USER", "ADMIN")
                     )
 
                 // Configure custom handlers for 401 and 403

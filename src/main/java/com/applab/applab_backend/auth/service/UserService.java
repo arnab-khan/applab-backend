@@ -1,7 +1,6 @@
 package com.applab.applab_backend.auth.service;
 
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -12,6 +11,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.applab.applab_backend.auth.dto.LoginRequest;
+import com.applab.applab_backend.auth.dto.SignupRequest;
 import com.applab.applab_backend.auth.model.UserModel;
 import com.applab.applab_backend.auth.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,13 +31,16 @@ public class UserService {
     }
 
     // Hashes the password and then saves the user in the database
-    public Map<String, Object> createUser(UserModel user, HttpServletRequest request) {
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
+    public UserModel createUser(SignupRequest userDetails, HttpServletRequest request) {
+        UserModel user = new UserModel();
+        user.setName(userDetails.getName());
+        user.setUsername(userDetails.getUsername());
+        user.setPassword(passwordEncoder.encode(userDetails.getPassword()));
         userRepository.save(user);
         return apiResponse(user, request);
     }
 
-    public Map<String, Object> loginUser(UserModel loginDetails, HttpServletRequest request) {
+    public UserModel loginUser(LoginRequest loginDetails, HttpServletRequest request) {
 
         String username = loginDetails.getUsername();
         String rawPassword = loginDetails.getPassword();
@@ -61,21 +65,15 @@ public class UserService {
         return apiResponse(user, request);
     }
 
-    private Map<String, Object> apiResponse(UserModel user, HttpServletRequest request) {
-        // Invalidate existing session for security
-        // Without this same session ID for different users if same browser/client
-        // Sessions are tied to the browser, not the user
-        // The session gets overwritten with the new user's data
-        // So to fix that, we invalidate any existing session first and create a new one
+    private UserModel apiResponse(UserModel user, HttpServletRequest request) {
+
         HttpSession existingSession = request.getSession(false); // Get existing session if exists
         if (existingSession != null) {
             existingSession.invalidate(); // Invalidate existing session
         }
-
         // Generating session
-        HttpSession session = request.getSession(true); // Create new session object. If Spring Session with Redis is configured, the session will be automatically persisted to Redis. When we create it also content getId() in it
+        HttpSession session = request.getSession(true);
         session.setAttribute("userId", user.getId()); // Store the logged-in user's ID in the session
-        session.setAttribute("roles", List.of("ROLE_USER")); // Store the user's roles in the session
 
         // Create Authentication object for Spring Security
         Authentication auth = new UsernamePasswordAuthenticationToken(
@@ -83,20 +81,11 @@ public class UserService {
                 null,
                 List.of(new SimpleGrantedAuthority("ROLE_USER")));
 
-        
-        // SecurityContextHolder is a Spring Security class that holds the security context for the current thread.
-        // getContext() returns the current SecurityContext, which is basically a container for the current authenticated user.
-        // setAuthentication(auth) sets the Authentication object representing the logged-in user in the current thread.
-        // and telling Spring Security that this request is authenticated as this user"
         SecurityContextHolder.getContext().setAuthentication(auth);
-        session.setAttribute("securityContext", SecurityContextHolder.getContext()); // Store the current SecurityContext in the session under a custom key "securityContext". This will be used later by the HeaderSessionAuthFilter.java to restore authentication
+        session.setAttribute("securityContext", SecurityContextHolder.getContext());
 
         // Return success response with user details and session info
-        return Map.of(
-                "message", "Successful",
-                "user", user,
-                "roles", session.getAttribute("roles"),
-                "sessionId", session.getId());
+        return user;
     }
 
     public UserModel getUserById(Long userId) {
