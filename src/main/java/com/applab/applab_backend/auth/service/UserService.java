@@ -88,6 +88,10 @@ public class UserService {
         return user;
     }
 
+    public boolean isUsernameExist(String username) {
+        return userRepository.existsByUsername(username);
+    }
+
     public UserModel getUserById(Long userId) {
         return userRepository.findById(userId).orElse(null);
     }

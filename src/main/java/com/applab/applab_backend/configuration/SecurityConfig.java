@@ -2,6 +2,7 @@ package com.applab.applab_backend.configuration;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
@@ -24,26 +25,39 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+
+                // Enable CORS (Cross-Origin Resource Sharing) with default settings
+                .cors(Customizer.withDefaults())
+
                 // Disable CSRF since this is probably a stateless API using tokens or headers
                 .csrf(csrf -> csrf.disable())
 
                 // Configure authorization rules for HTTP requests
                 .authorizeHttpRequests(auth -> auth
-                        // Allow public endpoints and authentication endpoints without any authentication
-                        .requestMatchers("/public/**", "/auth/**").permitAll()
 
                         // Only allow users with ROLE_ADMIN to access any URL containing '/admin/'
                         .requestMatchers(request -> request.getRequestURI().contains("/admin/")).hasRole("ADMIN")
 
-                        // Allow users with ROLE_USER or ROLE_ADMIN to access URLs containing '/user/' This ensures admins can access user endpoints as well
-                        .requestMatchers("/user/**","/todo/**").hasAnyRole("USER", "ADMIN")
-                    )
+                        // Allow public endpoints containing '/public/' without any authentication
+                        .requestMatchers(request -> request.getRequestURI().contains("/public/")).permitAll()
+
+                        // Allow authentication startpoint without any authentication
+                        .requestMatchers("/auth/**").permitAll()
+
+                        // Allow users with ROLE_USER or ROLE_ADMIN to access '/auth/me' endpoint
+                        .requestMatchers("/auth/me").hasAnyRole("USER", "ADMIN")
+
+                        // Allow users with ROLE_USER or ROLE_ADMIN to access '/auth/logout' endpoint
+                        .requestMatchers("/auth/logout").hasAnyRole("USER", "ADMIN")
+
+                        // Allow users with ROLE_USER or ROLE_ADMIN to access URLs containing '/user/'
+                        // This ensures admins can access user endpoints as well
+                        .requestMatchers("/user/**", "/todo/**").hasAnyRole("USER", "ADMIN"))
 
                 // Configure custom handlers for 401 and 403
                 .exceptionHandling(ex -> ex
-                    .authenticationEntryPoint(customAuthenticationEntryPoint())
-                    .accessDeniedHandler(customAccessDeniedHandler())
-                )
+                        .authenticationEntryPoint(customAuthenticationEntryPoint())
+                        .accessDeniedHandler(customAccessDeniedHandler()))
 
                 // Disable default HTTP Basic authentication
                 .httpBasic(basic -> basic.disable())
@@ -51,15 +65,18 @@ public class SecurityConfig {
                 // Disable default form login
                 .formLogin(form -> form.disable());
 
-        // Add custom filter before the default Spring Security UsernamePasswordAuthenticationFilter
-        // This filter restores SecurityContext from the session ID in the custom header (X-SESSION-ID)
+        // Add custom filter before the default Spring Security
+        // UsernamePasswordAuthenticationFilter
+        // This filter restores SecurityContext from the session ID in the custom header
+        // (X-SESSION-ID)
         http.addFilterBefore(headerSessionAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         // Build and return the configured filter chain
         return http.build();
     }
 
-    // Handles cases where there is NO valid authentication (user is not logged in or session is missing/expired/invalid)
+    // Handles cases where there is NO valid authentication (user is not logged in
+    // or session is missing/expired/invalid)
     @Bean
     public AuthenticationEntryPoint customAuthenticationEntryPoint() {
         return (request, response, authException) -> {
@@ -69,7 +86,8 @@ public class SecurityConfig {
         };
     }
 
-    // Handles cases where the user is authenticated but does NOT have permission for the requested resource
+    // Handles cases where the user is authenticated but does NOT have permission
+    // for the requested resource
     @Bean
     public AccessDeniedHandler customAccessDeniedHandler() {
         return (request, response, accessDeniedException) -> {

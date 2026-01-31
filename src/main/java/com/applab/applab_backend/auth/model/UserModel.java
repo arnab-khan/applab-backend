@@ -9,9 +9,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
@@ -20,6 +17,7 @@ import lombok.Data;
 public class UserModel {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @JsonView(SerializationJsonViews.MyClass.class) // Visible in public view
     private Long id;
 
     @JsonView(SerializationJsonViews.MyClass.class) // Visible in public view

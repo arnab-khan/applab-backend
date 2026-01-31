@@ -12,6 +12,11 @@ import com.fasterxml.jackson.annotation.JsonView;
 
 import jakarta.servlet.http.HttpServletRequest;
 
+import java.util.Map;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
 @RestController
 @RequestMapping("/user")
 public class UserController {
@@ -27,4 +32,13 @@ public class UserController {
     public UserModel updateUser(@RequestBody UserModel userDetails, HttpServletRequest request) {
         return userService.updateUser(userDetails, request);
     }
+
+    // check if username is taken
+    @GetMapping("/public/is-username-exist")
+    @JsonView(SerializationJsonViews.MyClass.class)
+    public Map<String, Boolean> isUsernameExist(@RequestParam String username) {
+        boolean exists = userService.isUsernameExist(username);
+        return Map.of("exists", exists);
+    }
+
 }

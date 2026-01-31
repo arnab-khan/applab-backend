@@ -11,7 +11,7 @@ public interface UserValidation {
     }
 
     public interface OptionalNameValidation {
-        @Size(min = 3, max = 50, message = "Name must be 3-50 characters")
+        @Size(min = 1, max = 50, message = "Name must be 1-50 characters")
         String getName();
     }
 
