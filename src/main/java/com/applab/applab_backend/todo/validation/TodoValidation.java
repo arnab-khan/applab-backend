@@ -10,7 +10,7 @@ public interface TodoValidation {
     }
 
     public interface OptionalTitleValidation {
-        @Size(min = 3, max = 100, message = "Title must be 3–100 characters")
+        @Size(min = 1, max = 100, message = "Title must be 1–100 characters")
         String getTitle();
     }
 
@@ -20,7 +20,7 @@ public interface TodoValidation {
     }
 
     public interface OptionalDescriptionValidation {
-        @Size(min = 3, max = 500, message = "Description must be 3–500 characters")
+        @Size(min = 1, max = 500, message = "Description must be 1–500 characters")
         String getDescription();
     }
 }

@@ -50,7 +50,7 @@ public class UserService {
         if (user == null) {
             throw new ResponseStatusException(
                     HttpStatus.NOT_FOUND,
-                    "User not found");
+                    "Username not found");
         }
 
         // Validate password

@@ -1,5 +1,12 @@
 package com.applab.applab_backend.todo.model;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -18,5 +25,16 @@ public class TodoModel {
     private String title;
     private String description;
     private long userId;
+    
+    @Column(nullable = false)
+    private boolean completed = false;
+
+    @CreationTimestamp
+    @Column(updatable = false, nullable = false)
+    private Instant createdAt;
+
+    @UpdateTimestamp
+    @Column(nullable = false)
+    private Instant updatedAt;
 
 }

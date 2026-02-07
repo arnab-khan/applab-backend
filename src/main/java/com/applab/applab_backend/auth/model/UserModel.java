@@ -1,5 +1,10 @@
 package com.applab.applab_backend.auth.model;
 
+import java.time.Instant;
+
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
 import com.applab.applab_backend.common.views.SerializationJsonViews;
 import com.fasterxml.jackson.annotation.JsonView;
 
@@ -30,4 +35,14 @@ public class UserModel {
     @Column(nullable = false)
     @JsonView(SerializationJsonViews.MyChild.class) // Visible only in internal view
     private String password;
+
+    @CreationTimestamp
+    @Column(updatable = false, nullable = false)
+    @JsonView(SerializationJsonViews.MyClass.class) // Visible in public view
+    private Instant createdAt;
+
+    @UpdateTimestamp
+    @Column(nullable = false)
+    @JsonView(SerializationJsonViews.MyClass.class) // Visible in public view
+    private Instant updatedAt;
 }
