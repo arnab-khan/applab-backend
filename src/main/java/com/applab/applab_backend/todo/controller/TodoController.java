@@ -15,8 +15,6 @@ import com.applab.applab_backend.todo.service.TodoService;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 
-import java.util.List;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,8 +30,12 @@ public class TodoController {
     }
 
     @GetMapping("/all")
-    public Page<TodoModel> getAll(Pageable pageable, HttpSession session) {
-        return todoService.getAll(pageable, session);
+    public Page<TodoModel> getAll(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Boolean completed,
+            Pageable pageable,
+            HttpSession session) {
+        return todoService.getAll(keyword, completed, pageable, session);
     }
 
     @PostMapping("/add")
@@ -47,8 +49,8 @@ public class TodoController {
     }
 
     @PatchMapping("/complete")
-    public TodoModel markAsComplete(@RequestParam Long id, @RequestParam boolean completed, HttpSession session) {
-        return todoService.markAsComplete(id, completed, session);
+    public TodoModel markAsComplete(@RequestParam Long id, HttpSession session) {
+        return todoService.markAsComplete(id, session);
     }
 
 }

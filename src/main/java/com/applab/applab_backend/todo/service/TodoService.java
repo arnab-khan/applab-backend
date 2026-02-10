@@ -45,8 +45,7 @@ public class TodoService {
         return todoRepository.save(existingTodo);
     }
 
-    public Page<TodoModel> getAll(Pageable pageable, HttpSession session) {
-
+    public Page<TodoModel> getAll(String keyword, Boolean completed, Pageable pageable, HttpSession session) {
         List<String> allowedSorts = List.of("createdAt", "updatedAt", "title"); // Allowed sort fields list
         for (Sort.Order order : pageable.getSort()) {
             if (!allowedSorts.contains(order.getProperty())) {
@@ -55,19 +54,20 @@ public class TodoService {
                                 ". Allowed fields: " + allowedSorts);
             }
         }
-
         Long userId = (Long) session.getAttribute("userId");
-        return todoRepository.findByUserId(userId, pageable);
+        return todoRepository.searchTodos(userId, keyword, completed, pageable);
     }
 
-    public TodoModel markAsComplete(Long id, boolean completed, HttpSession session) {
+    public TodoModel markAsComplete(Long id, HttpSession session) {
         TodoModel existingTodo = validateTodoOwnership(id, session);
+        boolean completed = !existingTodo.isCompleted(); // Toggle completion status
         existingTodo.setCompleted(completed);
         return todoRepository.save(existingTodo);
     }
 
     private TodoModel validateTodoOwnership(Long id, HttpSession session) {
         TodoModel existingTodo = todoRepository.findById(id).orElseThrow(() -> new RuntimeException("Todo not found"));
+        System.out.println("Existing Todo User ID: " + existingTodo.getUserId());
         Long existingTodoUserId = existingTodo.getUserId();
         Long userId = (Long) session.getAttribute("userId");
         if (!existingTodoUserId.equals(userId)) {

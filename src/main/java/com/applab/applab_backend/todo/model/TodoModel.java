@@ -1,8 +1,6 @@
 package com.applab.applab_backend.todo.model;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
-
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
