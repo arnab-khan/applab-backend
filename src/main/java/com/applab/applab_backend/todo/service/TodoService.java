@@ -45,6 +45,13 @@ public class TodoService {
         return todoRepository.save(existingTodo);
     }
 
+    public void deleteTodo(Long id, HttpSession session) {
+        TodoModel existingTodo = validateTodoOwnership(id, session);
+        System.out.println("Deleting Todo with ID: " + existingTodo);
+        
+        todoRepository.delete(existingTodo);
+    }
+
     public Page<TodoModel> getAll(String keyword, Boolean completed, Pageable pageable, HttpSession session) {
         List<String> allowedSorts = List.of("createdAt", "updatedAt", "title"); // Allowed sort fields list
         for (Sort.Order order : pageable.getSort()) {
