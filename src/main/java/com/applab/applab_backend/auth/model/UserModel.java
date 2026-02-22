@@ -14,11 +14,15 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Index;
 import lombok.Data;
 
 @Data
 @Entity
-@Table(name = "users")
+@Table(name = "users", indexes = {
+        @Index(name = "idx_users_name", columnList = "name"),
+        @Index(name = "idx_users_created_at", columnList = "created_at")
+})
 public class UserModel {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
