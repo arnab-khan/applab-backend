@@ -14,7 +14,7 @@ public class WebConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOriginPatterns("http://localhost:*", "https://applab-api.arnabkhan.in")
+                        .allowedOriginPatterns("http://localhost:*", "https://applab.arnabkhan.in")
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
                         .allowCredentials(true)
                         .allowedHeaders("*");
