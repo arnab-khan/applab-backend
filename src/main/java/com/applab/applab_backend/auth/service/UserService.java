@@ -9,26 +9,30 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.applab.applab_backend.auth.dto.LoginRequest;
 import com.applab.applab_backend.auth.dto.SignupRequest;
+import com.applab.applab_backend.auth.dto.UserProfileImageResponse;
 import com.applab.applab_backend.auth.model.UserModel;
 import com.applab.applab_backend.auth.repository.UserRepository;
+import com.applab.applab_backend.storage.model.FileEntityModel;
+import com.applab.applab_backend.storage.service.StorageService;
+
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import lombok.RequiredArgsConstructor;
+
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RequiredArgsConstructor
 public class UserService {
 
     private final PasswordEncoder passwordEncoder;
     private final UserRepository userRepository;
-
-    public UserService(PasswordEncoder passwordEncoder, UserRepository userRepository) {
-        this.passwordEncoder = passwordEncoder;
-        this.userRepository = userRepository;
-    }
+    private final StorageService storageService;
 
     // Hashes the password and then saves the user in the database
     public UserModel createUser(SignupRequest userDetails, HttpServletRequest request) {
@@ -99,34 +103,48 @@ public class UserService {
     public UserModel getUserBySession(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         if (session == null) {
-            return null;
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not logged in");
         }
         Long userId = (Long) session.getAttribute("userId");
         if (userId == null) {
-            return null;
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not logged in");
         }
-        return getUserById(userId);
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+    }
+
+    public FileEntityModel updateProfileImage(MultipartFile profileImage, HttpServletRequest request) {
+        UserModel user = getUserBySession(request);
+        FileEntityModel savedImage;
+        if (user.getProfileImage() == null) {
+            savedImage = storageService.storeImage(profileImage, 1);
+            user.setProfileImage(savedImage);
+        } else {
+            savedImage = storageService.updateImage(user.getProfileImage().getId(), profileImage, 1);
+        }
+        userRepository.save(user);
+        System.out.println(savedImage.getId());
+        return savedImage;
+    }
+
+    @Transactional(readOnly = true)
+    public UserProfileImageResponse getProfileImage(HttpServletRequest request) {
+        UserModel user = getUserBySession(request);
+        FileEntityModel image = user.getProfileImage();
+        if (image == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Profile image not found");
+        }
+        return new UserProfileImageResponse(user.getId(), image.getFileName(), image.getFileType(), image.getData());
     }
 
     @Transactional
     public UserModel updateUser(UserModel updatedDetails, HttpServletRequest request) {
-        HttpSession session = request.getSession(false);
-        if (session == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not logged in");
-        }
-
-        Long userId = (Long) session.getAttribute("userId");
-        if (userId == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not logged in");
-        }
-
-        UserModel existingUser = userRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        UserModel existingUser = getUserBySession(request);
 
         // Update only provided fields
         if (updatedDetails.getUsername() != null && !updatedDetails.getUsername().trim().isEmpty()) {
             if (!existingUser.getUsername().equals(updatedDetails.getUsername())
-                    && userRepository.existsByUsername(updatedDetails.getUsername())) {
+                    && isUsernameExist(updatedDetails.getUsername())) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Username already taken");
             }
             existingUser.setUsername(updatedDetails.getUsername());

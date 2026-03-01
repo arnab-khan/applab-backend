@@ -4,10 +4,13 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.applab.applab_backend.auth.model.UserModel;
 import com.applab.applab_backend.auth.service.UserService;
+import com.applab.applab_backend.auth.dto.UserProfileImageResponse;
 import com.applab.applab_backend.common.views.SerializationJsonViews;
+import com.applab.applab_backend.storage.model.FileEntityModel;
 import com.fasterxml.jackson.annotation.JsonView;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -41,4 +44,15 @@ public class UserController {
         return Map.of("exists", exists);
     }
 
+    // Endpoint to handle profile image upload
+    @PatchMapping("/update-profile-image")
+    public FileEntityModel updateProfileImage(@RequestBody MultipartFile profileImage, HttpServletRequest request) {
+        return userService.updateProfileImage(profileImage, request);
+    }
+
+    // Endpoint to get profile image
+    @GetMapping("/profile-image")
+    public UserProfileImageResponse getProfileImage(HttpServletRequest request) {
+        return userService.getProfileImage(request);
+    }
 }

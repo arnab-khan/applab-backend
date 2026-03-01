@@ -6,15 +6,21 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import com.applab.applab_backend.common.views.SerializationJsonViews;
+import com.applab.applab_backend.storage.model.FileEntityModel;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
 import lombok.Data;
 
 @Data
@@ -49,4 +55,13 @@ public class UserModel {
     @Column(nullable = false)
     @JsonView(SerializationJsonViews.MyClass.class) // Visible in public view
     private Instant updatedAt;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "profile_image_id")
+    @JsonIgnore
+    private FileEntityModel profileImage;
+
+    public String getProfileImageUrl() {
+        return profileImage != null ? "/files/" + profileImage.getId() : null;
+    }
 }

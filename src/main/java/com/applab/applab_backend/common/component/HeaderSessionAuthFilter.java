@@ -19,7 +19,7 @@ public class HeaderSessionAuthFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        System.out.println(path.contains("/public/"));
+        System.out.println("URI=" + request.getRequestURI() + ", servletPath=" + request.getServletPath());
         return path.startsWith("/auth/") || path.contains("/public/");
     }
 
