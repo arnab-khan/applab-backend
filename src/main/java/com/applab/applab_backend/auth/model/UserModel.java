@@ -38,6 +38,9 @@ public class UserModel {
     @JsonView(SerializationJsonViews.MyClass.class) // Visible in public view
     private String name;
 
+    @JsonView(SerializationJsonViews.MyClass.class) // Visible in public view
+    private String bio;
+
     @Column(nullable = false, unique = true)
     @JsonView(SerializationJsonViews.MyClass.class) // Visible in public view
     private String username;

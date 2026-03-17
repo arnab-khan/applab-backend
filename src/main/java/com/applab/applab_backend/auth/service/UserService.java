@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.applab.applab_backend.auth.dto.LoginRequest;
+import com.applab.applab_backend.auth.dto.ProfileBasicsUpdateRequest;
 import com.applab.applab_backend.auth.dto.SignupRequest;
 import com.applab.applab_backend.auth.dto.UserProfileImageResponse;
 import com.applab.applab_backend.auth.model.UserModel;
@@ -113,18 +114,12 @@ public class UserService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
     }
 
-    public FileEntityModel updateProfileImage(MultipartFile profileImage, HttpServletRequest request) {
-        UserModel user = getUserBySession(request);
-        FileEntityModel savedImage;
-        if (user.getProfileImage() == null) {
-            savedImage = storageService.storeImage(profileImage, 1);
-            user.setProfileImage(savedImage);
-        } else {
-            savedImage = storageService.updateImage(user.getProfileImage().getId(), profileImage, 1);
-        }
-        userRepository.save(user);
-        System.out.println(savedImage.getId());
-        return savedImage;
+    private UserProfileImageResponse toUserProfileImageResponse(Long userId, FileEntityModel image) {
+        return new UserProfileImageResponse(
+                userId,
+                image.getFileName(),
+                image.getFileType(),
+                image.getData());
     }
 
     @Transactional(readOnly = true)
@@ -134,24 +129,36 @@ public class UserService {
         if (image == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Profile image not found");
         }
-        return new UserProfileImageResponse(user.getId(), image.getFileName(), image.getFileType(), image.getData());
+        return toUserProfileImageResponse(user.getId(), image);
+    }
+
+    public UserProfileImageResponse updateProfileImage(MultipartFile profileImage, HttpServletRequest request) {
+        if (profileImage == null || profileImage.isEmpty()) {
+            throw new RuntimeException("No profile image provided");
+        }
+        UserModel user = getUserBySession(request);
+        FileEntityModel savedImage;
+        long maxFileSizeKb = 100;
+        if (user.getProfileImage() == null) {
+            savedImage = storageService.storeImage(profileImage, maxFileSizeKb);
+            user.setProfileImage(savedImage);
+        } else {
+            savedImage = storageService.updateImage(user.getProfileImage().getId(), profileImage, maxFileSizeKb);
+        }
+        userRepository.save(user);
+        return toUserProfileImageResponse(user.getId(), savedImage);
     }
 
     @Transactional
-    public UserModel updateUser(UserModel updatedDetails, HttpServletRequest request) {
+    public UserModel updateProfileBasics(ProfileBasicsUpdateRequest updatedDetails, HttpServletRequest request) {
         UserModel existingUser = getUserBySession(request);
-
-        // Update only provided fields
-        if (updatedDetails.getUsername() != null && !updatedDetails.getUsername().trim().isEmpty()) {
-            if (!existingUser.getUsername().equals(updatedDetails.getUsername())
-                    && isUsernameExist(updatedDetails.getUsername())) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Username already taken");
-            }
-            existingUser.setUsername(updatedDetails.getUsername());
-        }
 
         if (updatedDetails.getName() != null && !updatedDetails.getName().trim().isEmpty()) {
             existingUser.setName(updatedDetails.getName());
+        }
+
+        if (updatedDetails.getBio() != null) {
+            existingUser.setBio(updatedDetails.getBio());
         }
 
         return userRepository.save(existingUser);

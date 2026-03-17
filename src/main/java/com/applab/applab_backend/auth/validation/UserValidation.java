@@ -15,6 +15,11 @@ public interface UserValidation {
         String getName();
     }
 
+    public interface OptionalBioValidation {
+        @Size(max = 255, message = "Bio must be up to 255 characters")
+        String getBio();
+    }
+
     public interface UsernameValidation extends OptionalUsernameValidation, RequiredUserNameValidetion {
         String getUsername();
     }

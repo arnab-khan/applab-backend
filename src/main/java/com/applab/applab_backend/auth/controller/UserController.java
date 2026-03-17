@@ -6,14 +6,15 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.applab.applab_backend.auth.dto.ProfileBasicsUpdateRequest;
 import com.applab.applab_backend.auth.model.UserModel;
 import com.applab.applab_backend.auth.service.UserService;
 import com.applab.applab_backend.auth.dto.UserProfileImageResponse;
 import com.applab.applab_backend.common.views.SerializationJsonViews;
-import com.applab.applab_backend.storage.model.FileEntityModel;
 import com.fasterxml.jackson.annotation.JsonView;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 
 import java.util.Map;
 
@@ -29,11 +30,12 @@ public class UserController {
         this.userService = userService;
     }
 
-    // Endpoint to handle update user
-    @PatchMapping("/update")
+    // Endpoint to handle profile basics update
+    @PatchMapping("/update-profile-basics")
     @JsonView(SerializationJsonViews.MyClass.class)
-    public UserModel updateUser(@RequestBody UserModel userDetails, HttpServletRequest request) {
-        return userService.updateUser(userDetails, request);
+    public UserModel updateProfileBasics(@Valid @RequestBody ProfileBasicsUpdateRequest userDetails,
+            HttpServletRequest request) {
+        return userService.updateProfileBasics(userDetails, request);
     }
 
     // check if username is taken
@@ -46,7 +48,9 @@ public class UserController {
 
     // Endpoint to handle profile image upload
     @PatchMapping("/update-profile-image")
-    public FileEntityModel updateProfileImage(@RequestBody MultipartFile profileImage, HttpServletRequest request) {
+    public UserProfileImageResponse updateProfileImage(@RequestBody MultipartFile profileImage, HttpServletRequest request) {
+        System.err.println("eeeee");
+        System.err.println(profileImage);
         return userService.updateProfileImage(profileImage, request);
     }
 
