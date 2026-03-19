@@ -24,41 +24,41 @@ import lombok.RequiredArgsConstructor;
 public class StorageController {
     private final StorageService storageService;
 
-    @PostMapping("/public/upload-file")
-    public ResponseEntity<FileEntityModel> uploadFile(
-            @RequestParam MultipartFile file) {
-        return ResponseEntity.ok(storageService.storeFile(file, 100));
-    }
+    // @PostMapping("/public/upload-file")
+    // public ResponseEntity<FileEntityModel> uploadFile(
+    //         @RequestParam MultipartFile file) {
+    //     return ResponseEntity.ok(storageService.storeFile(file, 100));
+    // }
 
-    @PostMapping("/public/upload-files")
-    public ResponseEntity<List<FileEntityModel>> uploadFiles(
-            @RequestParam MultipartFile[] files) {
-        return ResponseEntity.ok(storageService.storeFiles(files, 100));
-    }
+    // @PostMapping("/public/upload-files")
+    // public ResponseEntity<List<FileEntityModel>> uploadFiles(
+    //         @RequestParam MultipartFile[] files) {
+    //     return ResponseEntity.ok(storageService.storeFiles(files, 100));
+    // }
 
-    @PostMapping("/public/upload-image")
-    public ResponseEntity<FileEntityModel> uploadImage(
-            @RequestParam MultipartFile image) {
-        return ResponseEntity.ok(storageService.storeImage(image, 100));
-    }
+    // @PostMapping("/public/upload-image")
+    // public ResponseEntity<FileEntityModel> uploadImage(
+    //         @RequestParam MultipartFile image) {
+    //     return ResponseEntity.ok(storageService.storeImage(image, 100));
+    // }
 
-    @PatchMapping("/public/update-file/{id}")
-    public ResponseEntity<FileEntityModel> updateFile(
-            @PathVariable Long id,
-            @RequestParam MultipartFile file) {
-        return ResponseEntity.ok(storageService.updateFile(id, file, 100));
-    }
+    // @PatchMapping("/public/update-file/{id}")
+    // public ResponseEntity<FileEntityModel> updateFile(
+    //         @PathVariable Long id,
+    //         @RequestParam MultipartFile file) {
+    //     return ResponseEntity.ok(storageService.updateFile(id, file, 100));
+    // }
 
-    @PatchMapping("/public/update-image/{id}")
-    public ResponseEntity<FileEntityModel> updateImage(
-            @PathVariable Long id,
-            @RequestParam MultipartFile image) {
-        return ResponseEntity.ok(storageService.updateImage(id, image, 100));
-    }
+    // @PatchMapping("/public/update-image/{id}")
+    // public ResponseEntity<FileEntityModel> updateImage(
+    //         @PathVariable Long id,
+    //         @RequestParam MultipartFile image) {
+    //     return ResponseEntity.ok(storageService.updateImage(id, image, 100));
+    // }
 
-    @DeleteMapping("/public/delete-file/{id}")
-    public ResponseEntity<Void> deleteFile(@PathVariable Long id) {
-        storageService.deleteFile(id);
-        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
-    }
+    // @DeleteMapping("/public/delete-file/{id}")
+    // public ResponseEntity<Void> deleteFile(@PathVariable Long id) {
+    //     storageService.deleteFile(id);
+    //     return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    // }
 }

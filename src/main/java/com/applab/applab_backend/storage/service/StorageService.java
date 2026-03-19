@@ -19,6 +19,8 @@ import net.coobird.thumbnailator.Thumbnails;
 @RequiredArgsConstructor
 public class StorageService {
 
+    private static final double COMPRESSED_IMAGE_SIZE_TOLERANCE = 1.25;
+
     private final FileRepository fileRepository;
 
     public FileEntityModel storeFile(MultipartFile file, long maxFileSizeKb) {
@@ -84,7 +86,8 @@ public class StorageService {
         if (contentType != null && contentType.startsWith("image/")) {
             long targetKB = Math.max(1, maxBytes / 1024);
             byte[] compressed = compressImage(file, targetKB);
-            if (compressed.length > maxBytes) {
+            long allowedCompressedBytes = Math.round(maxBytes * COMPRESSED_IMAGE_SIZE_TOLERANCE);
+            if (compressed.length > allowedCompressedBytes) {
                 long compressedSizeKb = compressed.length / 1024;
                 throw new RuntimeException("Image size exceeds limit of " + maxFileSizeKb
                         + " KB even after compression. Compressed size: " + compressedSizeKb + " KB");
@@ -137,7 +140,7 @@ public class StorageService {
 
             Thumbnails.of(new java.io.ByteArrayInputStream(originalBytes))
                     .size(width, height)
-                    .outputFormat("jpg") // outputFormat("jpg")
+                    .outputFormat("jpeg") // outputFormat("jpeg")
                     .outputQuality(mid)
                     .toOutputStream(os);
 
@@ -159,7 +162,7 @@ public class StorageService {
 
             Thumbnails.of(new java.io.ByteArrayInputStream(originalBytes))
                     .size(800, 800) // 🔻 force smaller resolution
-                    .outputFormat("jpg")
+                    .outputFormat("jpeg")
                     .outputQuality(0.3)
                     .toOutputStream(os);
 

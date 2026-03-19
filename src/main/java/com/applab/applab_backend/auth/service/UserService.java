@@ -116,6 +116,7 @@ public class UserService {
 
     private UserProfileImageResponse toUserProfileImageResponse(Long userId, FileEntityModel image) {
         return new UserProfileImageResponse(
+                image.getId(),
                 userId,
                 image.getFileName(),
                 image.getFileType(),
