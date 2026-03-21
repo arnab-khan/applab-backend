@@ -33,9 +33,15 @@ public class StorageService {
         }
     }
 
-    public FileEntityModel storeImage(MultipartFile image, long maxFileSizeKb) {
+    public FileEntityModel storeImage(MultipartFile image, long maxFileSizeKb, long compressedMaxFileSizeKb) {
         validateImage(image);
-        return storeFile(image, maxFileSizeKb);
+        try {
+            FileEntityModel fileEntity = new FileEntityModel();
+            mapMultipartToEntity(image, maxFileSizeKb, compressedMaxFileSizeKb, fileEntity);
+            return fileRepository.save(fileEntity);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to store image", e);
+        }
     }
 
     public List<FileEntityModel> storeFiles(MultipartFile[] files, long maxFileSizeKb) {
@@ -61,9 +67,16 @@ public class StorageService {
         }
     }
 
-    public FileEntityModel updateImage(Long id, MultipartFile image, long maxFileSizeKb) {
+    public FileEntityModel updateImage(Long id, MultipartFile image, long maxFileSizeKb, long compressedMaxFileSizeKb) {
         validateImage(image);
-        return updateFile(id, image, maxFileSizeKb);
+        try {
+            FileEntityModel existing = fileRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("File not found"));
+            mapMultipartToEntity(image, maxFileSizeKb, compressedMaxFileSizeKb, existing);
+            return fileRepository.save(existing);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to update image", e);
+        }
     }
 
     public void deleteFile(Long id) {
@@ -107,66 +120,83 @@ public class StorageService {
 
     private void mapMultipartToEntity(MultipartFile file, long maxFileSizeKb, FileEntityModel target)
             throws IOException {
+        mapMultipartToEntity(file, maxFileSizeKb, null, target);
+    }
+
+    private void mapMultipartToEntity(MultipartFile file, long maxFileSizeKb, Long compressedMaxFileSizeKb,
+            FileEntityModel target) throws IOException {
         byte[] data = validateFile(file, maxFileSizeKb);
         target.setFileName(UUID.randomUUID().toString());
         target.setFileType(file.getContentType());
         target.setData(data);
+        target.setCompressedData(
+                compressedMaxFileSizeKb == null ? null : compressImage(file, compressedMaxFileSizeKb));
     }
 
     public byte[] compressImage(MultipartFile file, long targetKB) throws IOException {
-
         long maxBytes = targetKB * 1024;
 
-        // If already small → return directly
         if (file.getSize() <= maxBytes) {
             return file.getBytes();
         }
 
         byte[] originalBytes = file.getBytes();
+        byte[] bestOutput = null;
+        int[][] dimensionAttempts = {
+                { 1200, 1200 },
+                { 1000, 1000 },
+                { 800, 800 },
+                { 600, 600 },
+                { 400, 400 },
+                { 200, 200 },
+                { 100, 100 },
+                { 50, 50 },
+                { 25, 25 },
+                { 10, 10 },
+                { 5, 5 }
+        };
 
-        int width = 1200;
-        int height = 1200;
+        for (int[] dimensions : dimensionAttempts) {
+            byte[] compressed = compressAtSize(originalBytes, dimensions[0], dimensions[1], maxBytes);
+            if (compressed.length <= maxBytes) {
+                return compressed;
+            }
 
+            if (bestOutput == null || compressed.length < bestOutput.length) {
+                bestOutput = compressed;
+            }
+        }
+
+        return bestOutput;
+    }
+
+    private byte[] compressAtSize(byte[] originalBytes, int width, int height, long maxBytes) throws IOException {
         byte[] bestOutput = null;
 
         double low = 0.1;
         double high = 1.0;
 
-        // Binary search for best quality
-        for (int i = 0; i < 10; i++) { // 10 iterations is enough
+        for (int i = 0; i < 10; i++) {
             double mid = (low + high) / 2;
-
             ByteArrayOutputStream os = new ByteArrayOutputStream();
 
             Thumbnails.of(new java.io.ByteArrayInputStream(originalBytes))
                     .size(width, height)
-                    .outputFormat("jpeg") // outputFormat("jpeg")
+                    .outputFormat("jpeg")
                     .outputQuality(mid)
                     .toOutputStream(os);
 
             byte[] compressed = os.toByteArray();
+            if (bestOutput == null || compressed.length < bestOutput.length) {
+                bestOutput = compressed;
+            }
 
             if (compressed.length > maxBytes) {
-                // Too big → reduce quality
                 high = mid;
             } else {
-                // Acceptable → try higher quality
                 bestOutput = compressed;
                 low = mid;
             }
-        }
-
-        // ❗ If still null → fallback (extreme case)
-        if (bestOutput == null) {
-            ByteArrayOutputStream os = new ByteArrayOutputStream();
-
-            Thumbnails.of(new java.io.ByteArrayInputStream(originalBytes))
-                    .size(800, 800) // 🔻 force smaller resolution
-                    .outputFormat("jpeg")
-                    .outputQuality(0.3)
-                    .toOutputStream(os);
-
-            bestOutput = os.toByteArray();
         }
 
         return bestOutput;

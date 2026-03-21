@@ -5,5 +5,6 @@ public record UserProfileImageResponse(
         Long userId,
         String fileName,
         String fileType,
-        byte[] fileData) {
+        byte[] fileData,
+        byte[] compressedFileData) {
 }

@@ -31,6 +31,12 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class UserService {
 
+    private enum ProfileImageType {
+        FULL,
+        COMPRESSED,
+        BOTH
+    }
+
     private final PasswordEncoder passwordEncoder;
     private final UserRepository userRepository;
     private final StorageService storageService;
@@ -114,23 +120,32 @@ public class UserService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
     }
 
-    private UserProfileImageResponse toUserProfileImageResponse(Long userId, FileEntityModel image) {
+    private UserProfileImageResponse buildProfileImageResponse(
+            Long userId,
+            FileEntityModel image,
+            ProfileImageType profileImageType) {
+        boolean includeFullImage = profileImageType == ProfileImageType.FULL
+                || profileImageType == ProfileImageType.BOTH;
+        boolean includeCompressedImage = profileImageType == ProfileImageType.COMPRESSED
+                || profileImageType == ProfileImageType.BOTH;
+
         return new UserProfileImageResponse(
                 image.getId(),
                 userId,
                 image.getFileName(),
                 image.getFileType(),
-                image.getData());
+                includeFullImage ? image.getData() : null,
+                includeCompressedImage ? image.getCompressedData() : null);
     }
 
     @Transactional(readOnly = true)
-    public UserProfileImageResponse getProfileImage(HttpServletRequest request) {
+    public UserProfileImageResponse getProfileImage(HttpServletRequest request, boolean fullImage) {
         UserModel user = getUserBySession(request);
         FileEntityModel image = user.getProfileImage();
         if (image == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Profile image not found");
         }
-        return toUserProfileImageResponse(user.getId(), image);
+        return buildProfileImageResponse(user.getId(), image, fullImage ? ProfileImageType.FULL : ProfileImageType.COMPRESSED);
     }
 
     public UserProfileImageResponse updateProfileImage(MultipartFile profileImage, HttpServletRequest request) {
@@ -139,15 +154,20 @@ public class UserService {
         }
         UserModel user = getUserBySession(request);
         FileEntityModel savedImage;
-        long maxFileSizeKb = 100;
+        long maxFileSizeKb = 50;
+        long compressedMaxFileSizeKb = 5;
         if (user.getProfileImage() == null) {
-            savedImage = storageService.storeImage(profileImage, maxFileSizeKb);
+            savedImage = storageService.storeImage(profileImage, maxFileSizeKb, compressedMaxFileSizeKb);
             user.setProfileImage(savedImage);
         } else {
-            savedImage = storageService.updateImage(user.getProfileImage().getId(), profileImage, maxFileSizeKb);
+            savedImage = storageService.updateImage(
+                    user.getProfileImage().getId(),
+                    profileImage,
+                    maxFileSizeKb,
+                    compressedMaxFileSizeKb);
         }
         userRepository.save(user);
-        return toUserProfileImageResponse(user.getId(), savedImage);
+        return buildProfileImageResponse(user.getId(), savedImage, ProfileImageType.BOTH);
     }
 
     @Transactional

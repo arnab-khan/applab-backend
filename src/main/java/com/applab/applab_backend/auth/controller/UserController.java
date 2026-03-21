@@ -49,14 +49,14 @@ public class UserController {
     // Endpoint to handle profile image upload
     @PatchMapping("/update-profile-image")
     public UserProfileImageResponse updateProfileImage(@RequestBody MultipartFile profileImage, HttpServletRequest request) {
-        System.err.println("eeeee");
-        System.err.println(profileImage);
         return userService.updateProfileImage(profileImage, request);
     }
 
     // Endpoint to get profile image
     @GetMapping("/profile-image")
-    public UserProfileImageResponse getProfileImage(HttpServletRequest request) {
-        return userService.getProfileImage(request);
+    public UserProfileImageResponse getProfileImage(
+            HttpServletRequest request,
+            @RequestParam(defaultValue = "false") boolean fullImage) {
+        return userService.getProfileImage(request, fullImage);
     }
 }

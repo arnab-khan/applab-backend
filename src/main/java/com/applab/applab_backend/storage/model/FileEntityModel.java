@@ -22,6 +22,10 @@ public class FileEntityModel {
     private String fileType;
 
     @Lob
-    @Column(columnDefinition = "LONGBLOB")
+    @Column(columnDefinition = "BLOB")
     private byte[] data;
+
+    @Lob
+    @Column(columnDefinition = "BLOB")
+    private byte[] compressedData;
 }
