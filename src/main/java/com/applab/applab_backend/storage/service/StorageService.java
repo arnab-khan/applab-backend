@@ -1,9 +1,13 @@
 package com.applab.applab_backend.storage.service;
 
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+
+import javax.imageio.ImageIO;
 
 import org.apache.tomcat.util.http.fileupload.ByteArrayOutputStream;
 import org.springframework.stereotype.Service;
@@ -20,6 +24,8 @@ import net.coobird.thumbnailator.Thumbnails;
 public class StorageService {
 
     private static final double COMPRESSED_IMAGE_SIZE_TOLERANCE = 1.25;
+    private static final int MAX_INITIAL_DIMENSION = 1200;
+    private static final int MIN_DIMENSION = 5;
 
     private final FileRepository fileRepository;
 
@@ -141,23 +147,21 @@ public class StorageService {
         }
 
         byte[] originalBytes = file.getBytes();
-        byte[] bestOutput = null;
-        int[][] dimensionAttempts = {
-                { 1200, 1200 },
-                { 1000, 1000 },
-                { 800, 800 },
-                { 600, 600 },
-                { 400, 400 },
-                { 200, 200 },
-                { 100, 100 },
-                { 50, 50 },
-                { 25, 25 },
-                { 10, 10 },
-                { 5, 5 }
-        };
+        BufferedImage sourceImage = ImageIO.read(new ByteArrayInputStream(originalBytes));
+        if (sourceImage == null) {
+            throw new RuntimeException("Unable to read image for compression");
+        }
 
-        for (int[] dimensions : dimensionAttempts) {
-            byte[] compressed = compressAtSize(originalBytes, dimensions[0], dimensions[1], maxBytes);
+        int originalWidth = sourceImage.getWidth();
+        int originalHeight = sourceImage.getHeight();
+        double initialScale = Math.min(1.0,
+                (double) MAX_INITIAL_DIMENSION / Math.max(originalWidth, originalHeight));
+        int width = Math.max(MIN_DIMENSION, (int) Math.round(originalWidth * initialScale));
+        int height = Math.max(MIN_DIMENSION, (int) Math.round(originalHeight * initialScale));
+        byte[] bestOutput = null;
+
+        while (true) {
+            byte[] compressed = compressAtSize(originalBytes, width, height, maxBytes);
             if (compressed.length <= maxBytes) {
                 return compressed;
             }
@@ -165,40 +169,41 @@ public class StorageService {
             if (bestOutput == null || compressed.length < bestOutput.length) {
                 bestOutput = compressed;
             }
-        }
 
-        return bestOutput;
+            if (width <= MIN_DIMENSION && height <= MIN_DIMENSION) {
+                return bestOutput;
+            }
+
+            double dimensionScale = Math.sqrt((double) maxBytes / compressed.length);
+            dimensionScale = Math.max(0.5, Math.min(0.95, dimensionScale));
+
+            int nextWidth = Math.max(MIN_DIMENSION, (int) Math.floor(width * dimensionScale));
+            int nextHeight = Math.max(MIN_DIMENSION, (int) Math.floor(height * dimensionScale));
+
+            if (nextWidth == width && width > MIN_DIMENSION) {
+                nextWidth = width - 1;
+            }
+            if (nextHeight == height && height > MIN_DIMENSION) {
+                nextHeight = height - 1;
+            }
+
+            width = nextWidth;
+            height = nextHeight;
+        }  
     }
 
     private byte[] compressAtSize(byte[] originalBytes, int width, int height, long maxBytes) throws IOException {
-        byte[] bestOutput = null;
+        double quality = (double) maxBytes / originalBytes.length;
+        quality = Math.max(0.1, Math.min(1.0, quality));
+  
+        ByteArrayOutputStream os = new ByteArrayOutputStream();
 
-        double low = 0.1;
-        double high = 1.0;
+        Thumbnails.of(new java.io.ByteArrayInputStream(originalBytes))
+                .size(width, height)
+                .outputFormat("jpeg")
+                .outputQuality(quality)
+                .toOutputStream(os);
 
-        for (int i = 0; i < 10; i++) {
-            double mid = (low + high) / 2;
-            ByteArrayOutputStream os = new ByteArrayOutputStream();
-
-            Thumbnails.of(new java.io.ByteArrayInputStream(originalBytes))
-                    .size(width, height)
-                    .outputFormat("jpeg")
-                    .outputQuality(mid)
-                    .toOutputStream(os);
-
-            byte[] compressed = os.toByteArray();
-            if (bestOutput == null || compressed.length < bestOutput.length) {
-                bestOutput = compressed;
-            }
-
-            if (compressed.length > maxBytes) {
-                high = mid;
-            } else {
-                bestOutput = compressed;
-                low = mid;
-            }
-        }
-
-        return bestOutput;
+        return os.toByteArray();
     }
 }
