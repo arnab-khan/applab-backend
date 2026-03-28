@@ -35,14 +35,27 @@ public interface UserValidation {
         String getUsername();
     }
 
-    public interface PasswordValidation extends RequiredPasswordValidation {
+    public interface PasswordValidation extends OptionalPasswordValidation, RequiredPasswordValidation {
+        String getPassword();
+    }
+
+    public interface OptionalPasswordValidation {
         @Size(min = 6, max = 100, message = "Password must be at least 6 characters long and up to 100 characters")
         @Pattern(regexp = "^[^\\s]+$", message = "Password cannot contain spaces")
         String getPassword();
     }
 
+    public interface NewPasswordValidation extends OptionalPasswordValidation {
+        String getNewPassword();
+    }
+
     public interface RequiredPasswordValidation {
         @NotBlank(message = "Password is required")
         String getPassword();
+    }
+
+    public interface CurrentPasswordValidation {
+        @NotBlank(message = "Current password is required")
+        String getCurrentPassword();
     }
 }

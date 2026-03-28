@@ -5,7 +5,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.bind.annotation.DeleteMapping;
 
+import com.applab.applab_backend.auth.dto.ProfileCredentialsUpdateRequest;
 import com.applab.applab_backend.auth.dto.ProfileBasicsUpdateRequest;
 import com.applab.applab_backend.auth.model.UserModel;
 import com.applab.applab_backend.auth.service.UserService;
@@ -38,6 +40,13 @@ public class UserController {
         return userService.updateProfileBasics(userDetails, request);
     }
 
+    @PatchMapping("/update-credentials")
+    @JsonView(SerializationJsonViews.MyClass.class)
+    public UserModel updateCredentials(@Valid @RequestBody ProfileCredentialsUpdateRequest userDetails,
+            HttpServletRequest request) {
+        return userService.updateCredentials(userDetails, request);
+    }
+
     // check if username is taken
     @GetMapping("/public/is-username-exist")
     @JsonView(SerializationJsonViews.MyClass.class)
@@ -58,5 +67,11 @@ public class UserController {
             HttpServletRequest request,
             @RequestParam(defaultValue = "false") boolean fullImage) {
         return userService.getProfileImage(request, fullImage);
+    }
+
+    // Endpoint to delete profile image
+    @DeleteMapping("/profile-image")
+    public void deleteProfileImage(HttpServletRequest request) {
+        userService.deleteProfileImage(request);
     }
 }
