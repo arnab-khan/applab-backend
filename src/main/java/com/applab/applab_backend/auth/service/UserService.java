@@ -9,26 +9,38 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.applab.applab_backend.auth.dto.LoginRequest;
+import com.applab.applab_backend.auth.dto.ProfileCredentialsUpdateRequest;
+import com.applab.applab_backend.auth.dto.ProfileBasicsUpdateRequest;
 import com.applab.applab_backend.auth.dto.SignupRequest;
+import com.applab.applab_backend.auth.dto.UserProfileImageResponse;
 import com.applab.applab_backend.auth.model.UserModel;
 import com.applab.applab_backend.auth.repository.UserRepository;
+import com.applab.applab_backend.storage.model.FileEntityModel;
+import com.applab.applab_backend.storage.service.StorageService;
+
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import lombok.RequiredArgsConstructor;
+
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RequiredArgsConstructor
 public class UserService {
+
+    private enum ProfileImageType {
+        FULL,
+        COMPRESSED,
+        BOTH
+    }
 
     private final PasswordEncoder passwordEncoder;
     private final UserRepository userRepository;
-
-    public UserService(PasswordEncoder passwordEncoder, UserRepository userRepository) {
-        this.passwordEncoder = passwordEncoder;
-        this.userRepository = userRepository;
-    }
+    private final StorageService storageService;
 
     // Hashes the password and then saves the user in the database
     public UserModel createUser(SignupRequest userDetails, HttpServletRequest request) {
@@ -53,13 +65,7 @@ public class UserService {
                     "Username not found");
         }
 
-        // Validate password
-        boolean passwordMatches = passwordEncoder.matches(rawPassword, user.getPassword());
-        if (!passwordMatches) {
-            throw new ResponseStatusException(
-                    HttpStatus.UNAUTHORIZED,
-                    "Incorrect password");
-        }
+        validatePassword(rawPassword, user);
 
         // Successful login, create session and return response
         return apiResponse(user, request);
@@ -99,44 +105,125 @@ public class UserService {
     public UserModel getUserBySession(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         if (session == null) {
-            return null;
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not logged in");
         }
         Long userId = (Long) session.getAttribute("userId");
         if (userId == null) {
-            return null;
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not logged in");
         }
-        return getUserById(userId);
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+    }
+
+    private UserProfileImageResponse buildProfileImageResponse(
+            Long userId,
+            FileEntityModel image,
+            ProfileImageType profileImageType) {
+        boolean includeFullImage = profileImageType == ProfileImageType.FULL
+                || profileImageType == ProfileImageType.BOTH;
+        boolean includeCompressedImage = profileImageType == ProfileImageType.COMPRESSED
+                || profileImageType == ProfileImageType.BOTH;
+
+        return new UserProfileImageResponse(
+                image.getId(),
+                userId,
+                image.getFileName(),
+                image.getFileType(),
+                includeFullImage ? image.getData() : null,
+                includeCompressedImage ? image.getCompressedData() : null);
+    }
+
+    @Transactional(readOnly = true)
+    public UserProfileImageResponse getProfileImage(HttpServletRequest request, boolean fullImage) {
+        UserModel user = getUserBySession(request);
+        FileEntityModel image = user.getProfileImage();
+        if (image == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Profile image not found");
+        }
+        return buildProfileImageResponse(user.getId(), image, fullImage ? ProfileImageType.FULL : ProfileImageType.COMPRESSED);
+    }
+
+    public UserProfileImageResponse updateProfileImage(MultipartFile profileImage, HttpServletRequest request) {
+        if (profileImage == null || profileImage.isEmpty()) {
+            throw new RuntimeException("No profile image provided");
+        }
+        UserModel user = getUserBySession(request);
+        FileEntityModel savedImage;
+        long maxFileSizeKb = 50;
+        long compressedMaxFileSizeKb = 5;
+        if (user.getProfileImage() == null) {
+            savedImage = storageService.storeImage(profileImage, maxFileSizeKb, compressedMaxFileSizeKb);
+            user.setProfileImage(savedImage);
+        } else {
+            savedImage = storageService.updateImage(
+                    user.getProfileImage().getId(),
+                    profileImage,
+                    maxFileSizeKb,
+                    compressedMaxFileSizeKb);
+        }
+        userRepository.save(user);
+        return buildProfileImageResponse(user.getId(), savedImage, ProfileImageType.BOTH);
     }
 
     @Transactional
-    public UserModel updateUser(UserModel updatedDetails, HttpServletRequest request) {
-        HttpSession session = request.getSession(false);
-        if (session == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not logged in");
+    public void deleteProfileImage(HttpServletRequest request) {
+        UserModel user = getUserBySession(request);
+        FileEntityModel existingImage = user.getProfileImage();
+
+        if (existingImage == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Profile image not found");
         }
 
-        Long userId = (Long) session.getAttribute("userId");
-        if (userId == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not logged in");
-        }
+        user.setProfileImage(null);
+        userRepository.save(user);
+        storageService.deleteFile(existingImage.getId());
+    }
 
-        UserModel existingUser = userRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-
-        // Update only provided fields
-        if (updatedDetails.getUsername() != null && !updatedDetails.getUsername().trim().isEmpty()) {
-            if (!existingUser.getUsername().equals(updatedDetails.getUsername())
-                    && userRepository.existsByUsername(updatedDetails.getUsername())) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Username already taken");
-            }
-            existingUser.setUsername(updatedDetails.getUsername());
-        }
+    @Transactional
+    public UserModel updateProfileBasics(ProfileBasicsUpdateRequest updatedDetails, HttpServletRequest request) {
+        UserModel existingUser = getUserBySession(request);
 
         if (updatedDetails.getName() != null && !updatedDetails.getName().trim().isEmpty()) {
             existingUser.setName(updatedDetails.getName());
         }
 
+        if (updatedDetails.getBio() != null) {
+            existingUser.setBio(updatedDetails.getBio());
+        }
+
         return userRepository.save(existingUser);
+    }
+
+    @Transactional
+    public UserModel updateCredentials(ProfileCredentialsUpdateRequest updatedDetails, HttpServletRequest request) {
+        UserModel existingUser = getUserBySession(request);
+
+        validateCurrentPassword(updatedDetails.getCurrentPassword(), existingUser);
+
+        if (updatedDetails.getUsername() != null && !updatedDetails.getUsername().trim().isEmpty()) {
+            String normalizedUsername = updatedDetails.getUsername().trim();
+            existingUser.setUsername(normalizedUsername);
+        }
+
+        if (updatedDetails.getPassword() != null && !updatedDetails.getPassword().trim().isEmpty()) {
+            existingUser.setPassword(passwordEncoder.encode(updatedDetails.getPassword()));
+        }
+
+        return userRepository.save(existingUser);
+    }
+
+    private void validatePassword(String rawPassword, UserModel user) {
+        boolean passwordMatches = passwordEncoder.matches(rawPassword, user.getPassword());
+        if (!passwordMatches) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Incorrect password");
+        }
+    }
+
+    private void validateCurrentPassword(String rawPassword, UserModel user) {
+        boolean passwordMatches = passwordEncoder.matches(rawPassword, user.getPassword());
+        if (!passwordMatches) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Current password is incorrect");
+        }
     }
 
 }
