@@ -1,11 +1,13 @@
 package com.applab.applab_backend.auth.controller;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
 import com.applab.applab_backend.auth.dto.ProfileCredentialsUpdateRequest;
 import com.applab.applab_backend.auth.dto.ProfileBasicsUpdateRequest;
@@ -76,6 +78,12 @@ public class UserController {
             @RequestParam List<Long> userIds,
             @RequestParam(defaultValue = "false") boolean fullImage) {
         return userService.getPublicProfileImagesByUserIds(userIds, fullImage);
+    }
+
+    @GetMapping("/public/profile-image/raw/{userId}")
+    public ResponseEntity<byte[]> getPublicProfileImageRawByUserId(
+            @PathVariable Long userId) {
+        return userService.getPublicProfileImageRawByUserId(userId);
     }
 
     // Endpoint to handle profile image upload

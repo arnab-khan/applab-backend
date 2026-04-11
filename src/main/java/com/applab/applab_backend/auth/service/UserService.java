@@ -5,7 +5,10 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -136,6 +139,43 @@ public class UserService {
                 user.getCreatedAt(),
                 user.getUpdatedAt(),
                 user.getProfileImageUrl());
+    }
+
+    @Transactional(readOnly = true)
+    public FileEntityModel getPublicProfileImageByUserId(Long userId, boolean fullImage) {
+        UserModel user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        FileEntityModel image = user.getProfileImage();
+        if (image == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Profile image not found");
+        }
+
+        byte[] imageData = fullImage ? image.getData() : image.getCompressedData();
+        if (imageData == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Profile image not available");
+        }
+
+        FileEntityModel response = new FileEntityModel();
+        response.setId(image.getId());
+        response.setFileName(image.getFileName());
+        response.setFileType(image.getFileType());
+        response.setData(imageData);
+        return response;
+    }
+
+    @Transactional(readOnly = true)
+    public ResponseEntity<byte[]> getPublicProfileImageRawByUserId(Long userId) {
+        FileEntityModel image = getPublicProfileImageByUserId(userId, true);
+        byte[] imageData = image.getData();
+        MediaType contentType = image.getFileType() != null
+                ? MediaType.parseMediaType(image.getFileType())
+                : MediaType.APPLICATION_OCTET_STREAM;
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + image.getFileName() + "\"")
+                .contentType(contentType)
+                .body(imageData);
     }
 
     @Transactional(readOnly = true)
