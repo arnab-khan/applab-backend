@@ -2,6 +2,9 @@ package com.applab.applab_backend.auth.service;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -16,6 +19,7 @@ import com.applab.applab_backend.auth.dto.LoginRequest;
 import com.applab.applab_backend.auth.dto.ProfileCredentialsUpdateRequest;
 import com.applab.applab_backend.auth.dto.ProfileBasicsUpdateRequest;
 import com.applab.applab_backend.auth.dto.SignupRequest;
+import com.applab.applab_backend.auth.dto.UserListItemResponse;
 import com.applab.applab_backend.auth.dto.UserProfileImageResponse;
 import com.applab.applab_backend.auth.model.UserModel;
 import com.applab.applab_backend.auth.repository.UserRepository;
@@ -98,6 +102,51 @@ public class UserService {
         return userRepository.existsByUsername(username);
     }
 
+    public Page<UserListItemResponse> getAll(String keyword, Pageable pageable) {
+        List<String> allowedSorts = List.of("createdAt", "updatedAt", "name", "username");
+        for (Sort.Order order : pageable.getSort()) {
+            if (!allowedSorts.contains(order.getProperty())) {
+                throw new IllegalArgumentException(
+                        "Invalid sort field: " + order.getProperty() +
+                                ". Allowed fields: " + allowedSorts);
+            }
+        }
+        return userRepository.searchUsers(keyword, pageable)
+                .map(user -> new UserListItemResponse(
+                        user.getId(),
+                        user.getName(),
+                        user.getUsername(),
+                        user.getCreatedAt(),
+                        user.getUpdatedAt(),
+                        user.getProfileImageUrl()));
+    }
+
+    public UserListItemResponse getPublicUserByUsername(String username) {
+        UserModel user = userRepository.findByUsername(username);
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+        }
+
+        return new UserListItemResponse(
+                user.getId(),
+                user.getName(),
+                user.getUsername(),
+                user.getCreatedAt(),
+                user.getUpdatedAt(),
+                user.getProfileImageUrl());
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserProfileImageResponse> getPublicProfileImagesByUserIds(List<Long> userIds, boolean fullImage) {
+        return userRepository.findAllById(userIds).stream()
+                .filter(user -> user.getProfileImage() != null)
+                .map(user -> buildProfileImageResponse(
+                        user.getId(),
+                        user.getProfileImage(),
+                        fullImage ? ProfileImageType.FULL : ProfileImageType.COMPRESSED))
+                .toList();
+    }
+
     public UserModel getUserById(Long userId) {
         return userRepository.findById(userId).orElse(null);
     }
@@ -140,7 +189,8 @@ public class UserService {
         if (image == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Profile image not found");
         }
-        return buildProfileImageResponse(user.getId(), image, fullImage ? ProfileImageType.FULL : ProfileImageType.COMPRESSED);
+        return buildProfileImageResponse(user.getId(), image,
+                fullImage ? ProfileImageType.FULL : ProfileImageType.COMPRESSED);
     }
 
     public UserProfileImageResponse updateProfileImage(MultipartFile profileImage, HttpServletRequest request) {

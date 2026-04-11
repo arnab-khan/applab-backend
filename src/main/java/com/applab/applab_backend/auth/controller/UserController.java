@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 
 import com.applab.applab_backend.auth.dto.ProfileCredentialsUpdateRequest;
 import com.applab.applab_backend.auth.dto.ProfileBasicsUpdateRequest;
+import com.applab.applab_backend.auth.dto.UserListItemResponse;
 import com.applab.applab_backend.auth.model.UserModel;
 import com.applab.applab_backend.auth.service.UserService;
 import com.applab.applab_backend.auth.dto.UserProfileImageResponse;
@@ -18,8 +19,11 @@ import com.fasterxml.jackson.annotation.JsonView;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
+import java.util.List;
 import java.util.Map;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -53,6 +57,25 @@ public class UserController {
     public Map<String, Boolean> isUsernameExist(@RequestParam String username) {
         boolean exists = userService.isUsernameExist(username);
         return Map.of("exists", exists);
+    }
+
+    @GetMapping("/public/all")
+    public Page<UserListItemResponse> getAll(
+            @RequestParam(required = false) String keyword,
+            Pageable pageable) {
+        return userService.getAll(keyword, pageable);
+    }
+
+    @GetMapping("/public/by-username")
+    public UserListItemResponse getPublicUserByUsername(@RequestParam String username) {
+        return userService.getPublicUserByUsername(username);
+    }
+
+    @GetMapping("/public/profile-image/by-user-ids")
+    public List<UserProfileImageResponse> getPublicProfileImagesByUserIds(
+            @RequestParam List<Long> userIds,
+            @RequestParam(defaultValue = "false") boolean fullImage) {
+        return userService.getPublicProfileImagesByUserIds(userIds, fullImage);
     }
 
     // Endpoint to handle profile image upload
