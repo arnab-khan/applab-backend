@@ -116,6 +116,7 @@ public class UserService {
                         user.getId(),
                         user.getName(),
                         user.getUsername(),
+                        null,
                         user.getCreatedAt(),
                         user.getUpdatedAt(),
                         user.getProfileImageUrl()));
@@ -131,6 +132,7 @@ public class UserService {
                 user.getId(),
                 user.getName(),
                 user.getUsername(),
+                user.getBio(),
                 user.getCreatedAt(),
                 user.getUpdatedAt(),
                 user.getProfileImageUrl());
