@@ -10,7 +10,6 @@ import com.applab.applab_backend.storage.model.FileEntityModel;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
 
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -65,6 +64,10 @@ public class UserModel {
     private FileEntityModel profileImage;
 
     public String getProfileImageUrl() {
-        return profileImage != null ? "/files/" + profileImage.getId() : null;
+        return profileImage != null ? "/user/public/profile-image/raw/" + id : null;
+    }
+
+    public String getCompressedProfileImageUrl() {
+        return profileImage != null ? "/user/public/profile-image/compressed/" + id : null;
     }
 }
