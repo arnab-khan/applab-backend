@@ -121,8 +121,9 @@ public class UserService {
                         user.getUsername(),
                         null,
                         user.getCreatedAt(),
-                        user.getUpdatedAt(),
-                        user.getProfileImageUrl()));
+                        null,
+                        null,
+                        user.getCompressedProfileImageUrl()));
     }
 
     public UserListItemResponse getPublicUserByUsername(String username) {
@@ -138,7 +139,8 @@ public class UserService {
                 user.getBio(),
                 user.getCreatedAt(),
                 user.getUpdatedAt(),
-                user.getProfileImageUrl());
+                user.getProfileImageUrl(),
+                null);
     }
 
     @Transactional(readOnly = true)
@@ -166,7 +168,12 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public ResponseEntity<byte[]> getPublicProfileImageRawByUserId(Long userId) {
-        FileEntityModel image = getPublicProfileImageByUserId(userId, true);
+        return getPublicProfileImageRawByUserId(userId, true);
+    }
+
+    @Transactional(readOnly = true)
+    public ResponseEntity<byte[]> getPublicProfileImageRawByUserId(Long userId, boolean fullImage) {
+        FileEntityModel image = getPublicProfileImageByUserId(userId, fullImage);
         byte[] imageData = image.getData();
         MediaType contentType = image.getFileType() != null
                 ? MediaType.parseMediaType(image.getFileType())

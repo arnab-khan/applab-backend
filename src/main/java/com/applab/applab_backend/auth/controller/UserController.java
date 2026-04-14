@@ -86,6 +86,12 @@ public class UserController {
         return userService.getPublicProfileImageRawByUserId(userId);
     }
 
+    @GetMapping("/public/profile-image/compressed/{userId}")
+    public ResponseEntity<byte[]> getPublicCompressedProfileImageByUserId(
+            @PathVariable Long userId) {
+        return userService.getPublicProfileImageRawByUserId(userId, false);
+    }
+
     // Endpoint to handle profile image upload
     @PatchMapping("/update-profile-image")
     public UserProfileImageResponse updateProfileImage(@RequestBody MultipartFile profileImage, HttpServletRequest request) {
