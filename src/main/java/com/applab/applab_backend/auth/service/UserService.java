@@ -122,7 +122,7 @@ public class UserService {
                         null,
                         user.getCreatedAt(),
                         null,
-                        null,
+                        user.getProfileImageUrl(),
                         user.getCompressedProfileImageUrl()));
     }
 
