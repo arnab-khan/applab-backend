@@ -26,6 +26,7 @@ import com.applab.applab_backend.auth.dto.UserListItemResponse;
 import com.applab.applab_backend.auth.dto.UserProfileImageResponse;
 import com.applab.applab_backend.auth.model.UserModel;
 import com.applab.applab_backend.auth.repository.UserRepository;
+import com.applab.applab_backend.auth.enums.ProfileImageType;
 import com.applab.applab_backend.storage.model.FileEntityModel;
 import com.applab.applab_backend.storage.service.StorageService;
 
@@ -38,12 +39,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class UserService {
-
-    private enum ProfileImageType {
-        FULL,
-        COMPRESSED,
-        BOTH
-    }
 
     private final PasswordEncoder passwordEncoder;
     private final UserRepository userRepository;

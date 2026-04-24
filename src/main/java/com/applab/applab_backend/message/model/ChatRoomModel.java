@@ -1,16 +1,21 @@
-package com.applab.applab_backend.todo.model;
+package com.applab.applab_backend.message.model;
 
 import java.time.Instant;
+
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import com.applab.applab_backend.message.enums.RoomType;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Table;
 import jakarta.persistence.Index;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -19,22 +24,20 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "todos", indexes = {
-        @Index(name = "idx_todos_user_completed_updated", columnList = "user_id, completed, updated_at"),
-        @Index(name = "idx_todos_user_completed_created", columnList = "user_id, completed, created_at")
+@Table(name = "chat_rooms", indexes = {
+        @Index(name = "idx_chat_rooms_room_type_created_at", columnList = "room_type, created_at")
 })
-public class TodoModel {
-
+public class ChatRoomModel {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String title;
-    private String description;
-    private long userId;
-
     @Column(nullable = false)
-    private boolean completed = false;
+    private String name;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private RoomType roomType;
 
     @CreationTimestamp
     @Column(updatable = false, nullable = false)
@@ -43,5 +46,4 @@ public class TodoModel {
     @UpdateTimestamp
     @Column(nullable = false)
     private Instant updatedAt;
-
 }
