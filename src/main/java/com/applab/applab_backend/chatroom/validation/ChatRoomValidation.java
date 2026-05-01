@@ -1,6 +1,6 @@
-package com.applab.applab_backend.message.validation;
+package com.applab.applab_backend.chatroom.validation;
 
-import com.applab.applab_backend.message.enums.RoomType;
+import com.applab.applab_backend.chatroom.enums.RoomType;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

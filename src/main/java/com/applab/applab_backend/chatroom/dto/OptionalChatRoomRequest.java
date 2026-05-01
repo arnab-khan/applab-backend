@@ -1,7 +1,7 @@
-package com.applab.applab_backend.message.dto;
+package com.applab.applab_backend.chatroom.dto;
 
-import com.applab.applab_backend.message.enums.RoomType;
-import com.applab.applab_backend.message.validation.ChatRoomValidation;
+import com.applab.applab_backend.chatroom.enums.RoomType;
+import com.applab.applab_backend.chatroom.validation.ChatRoomValidation;
 
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;

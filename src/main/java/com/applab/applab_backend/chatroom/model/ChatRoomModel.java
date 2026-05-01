@@ -1,11 +1,11 @@
-package com.applab.applab_backend.message.model;
+package com.applab.applab_backend.chatroom.model;
 
 import java.time.Instant;
 
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import com.applab.applab_backend.message.enums.RoomType;
+import com.applab.applab_backend.chatroom.enums.RoomType;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

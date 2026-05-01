@@ -3,9 +3,9 @@ package com.applab.applab_backend.common.component;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
-import com.applab.applab_backend.message.dto.ChatRoomRequest;
-import com.applab.applab_backend.message.enums.RoomType;
-import com.applab.applab_backend.message.service.ChatRoomService;
+import com.applab.applab_backend.chatroom.dto.ChatRoomRequest;
+import com.applab.applab_backend.chatroom.enums.RoomType;
+import com.applab.applab_backend.chatroom.service.ChatRoomService;
 
 import lombok.RequiredArgsConstructor;
 
