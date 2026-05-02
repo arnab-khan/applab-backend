@@ -58,4 +58,5 @@ public interface UserValidation {
         @NotBlank(message = "Current password is required")
         String getCurrentPassword();
     }
+
 }

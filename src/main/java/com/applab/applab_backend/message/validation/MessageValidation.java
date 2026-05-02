@@ -41,6 +41,15 @@ public interface MessageValidation {
         Long getUserId();
     }
 
+    public interface GuestSessionIdValidation extends OptionalGuestSessionIdValidation {
+        @NotNull(message = "Guest session id is required")
+        Long getGuestSessionId();
+    }
+
+    public interface OptionalGuestSessionIdValidation {
+        Long getGuestSessionId();
+    }
+
     public interface ContentValidation extends OptionalContentValidation {
         @NotBlank(message = "Content is required")
         String getContent();

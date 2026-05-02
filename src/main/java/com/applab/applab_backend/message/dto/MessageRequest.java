@@ -8,10 +8,11 @@ import lombok.Data;
 @Data
 public class MessageRequest implements MessageValidation.ParentIdValidation, MessageValidation.ContextIdValidation,
         MessageValidation.ContextTypeValidation, MessageValidation.OptionalUserIdValidation,
-        MessageValidation.ContentValidation {
+        MessageValidation.OptionalGuestSessionIdValidation, MessageValidation.ContentValidation {
     private Long parentId;
     private Long contextId;
     private ContextType contextType;
     private Long userId;
+    private Long guestSessionId;
     private String content;
 }

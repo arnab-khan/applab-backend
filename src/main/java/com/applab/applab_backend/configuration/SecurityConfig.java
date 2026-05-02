@@ -41,8 +41,14 @@ public class SecurityConfig {
                         // Allow public endpoints containing '/public/' without any authentication
                         .requestMatchers(request -> request.getRequestURI().contains("/public/")).permitAll()
 
+                        // Allow guest endpoints without any authentication
+                        .requestMatchers("/guest/**").permitAll()
+
                         // Allow authentication startpoint without any authentication
                         .requestMatchers("/auth/**").permitAll()
+
+                        // Allow chatroom endpoints without any authentication
+                        .requestMatchers("/chatroom/**").permitAll()
 
                         // Allow users with ROLE_USER or ROLE_ADMIN to access '/auth/me' endpoint
                         .requestMatchers("/auth/me").hasAnyRole("USER", "ADMIN")
@@ -52,7 +58,7 @@ public class SecurityConfig {
 
                         // Allow users with ROLE_USER or ROLE_ADMIN to access URLs containing '/user/'
                         // This ensures admins can access user endpoints as well
-                        .requestMatchers("/user/**", "/todo/**", "/chatroom/**").hasAnyRole("USER", "ADMIN"))
+                        .requestMatchers("/user/**", "/todo/**").hasAnyRole("USER", "ADMIN"))
 
                 // Configure custom handlers for 401 and 403
                 .exceptionHandling(ex -> ex

@@ -41,8 +41,9 @@ public class MessageModel {
     @Column(nullable = false)
     private ContextType contextType;
 
-    @Column(nullable = false)
     private Long userId;
+
+    private Long guestSessionId;
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
