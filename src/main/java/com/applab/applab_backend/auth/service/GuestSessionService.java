@@ -25,4 +25,14 @@ public class GuestSessionService {
         guestIdCookie.setPath("/");
         response.addCookie(guestIdCookie);
     }
+
+    public Long getGuestSessionId(String guestId) {
+        if (guestId == null) {
+            return null;
+        }
+
+        return guestSessionRepository.findByGuestId(guestId)
+                .map(GuestSessionModel::getId)
+                .orElse(null);
+    }
 }

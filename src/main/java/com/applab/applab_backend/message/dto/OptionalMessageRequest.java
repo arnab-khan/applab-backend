@@ -9,11 +9,13 @@ import lombok.Data;
 @Data
 public class OptionalMessageRequest implements MessageValidation.OptionalParentIdValidation,
         MessageValidation.OptionalContextIdValidation, MessageValidation.OptionalContextTypeValidation,
-        MessageValidation.OptionalUserIdValidation, MessageValidation.OptionalContentValidation {
+        MessageValidation.OptionalUserIdValidation, MessageValidation.OptionalGuestSessionIdValidation,
+        MessageValidation.OptionalContentValidation {
     private Long parentId;
     private Long contextId;
     private ContextType contextType;
     private Long userId;
+    private Long guestSessionId;
     private String content;
 
     @NotNull(message = "Id is required")
