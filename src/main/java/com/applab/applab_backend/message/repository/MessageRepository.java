@@ -1,6 +1,6 @@
 package com.applab.applab_backend.message.repository;
+import java.util.List;
 
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -17,11 +17,9 @@ public interface MessageRepository extends JpaRepository<MessageModel, Long> {
                 AND m.contextType = :contextType
                 AND (:parentId IS NULL OR m.parentId = :parentId)
                 AND (:deleted IS NULL OR m.deleted = :deleted)
-                AND (
-                    :keyword IS NULL OR
-                    LOWER(m.content) LIKE LOWER(CONCAT('%', :keyword, '%'))
-                )
+                AND (:cursor IS NULL OR m.id < :cursor)
+                ORDER BY m.id DESC
             """)
-    Page<MessageModel> searchMessages(Long contextId, ContextType contextType, Long parentId, Boolean deleted,
-            String keyword, Pageable pageable);
+    List<MessageModel> findMessagesByCursor(Long contextId, ContextType contextType, Long parentId, Boolean deleted,
+            Long cursor, Pageable pageable);
 }

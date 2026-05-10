@@ -1,7 +1,5 @@
 package com.applab.applab_backend.chatroom.controller;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,7 +11,9 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.applab.applab_backend.chatroom.dto.ChatRoomMessageResponse;
 import com.applab.applab_backend.chatroom.dto.ChatRoomRequest;
+import com.applab.applab_backend.chatroom.dto.CursorPageResponse;
 import com.applab.applab_backend.chatroom.service.ChatRoomService;
 import com.applab.applab_backend.message.dto.OptionalMessageRequest;
 import com.applab.applab_backend.message.model.MessageModel;
@@ -28,14 +28,34 @@ import lombok.RequiredArgsConstructor;
 public class ChatRoomController {
     private final ChatRoomService chatRoomService;
 
-    @GetMapping("/{chatRoomId}/message/all")
-    public Page<MessageModel> getMessages(
-            @PathVariable Long chatRoomId,
-            @RequestParam(required = false) String keyword,
+    @GetMapping("/global/message/all")
+    public CursorPageResponse<ChatRoomMessageResponse> getGlobalMessages(
             @RequestParam(required = false) Long parentId,
-            @RequestParam(required = false) Boolean deleted,
-            Pageable pageable) {
-        return chatRoomService.getChatRoomMessages(chatRoomId, keyword, parentId, deleted, pageable);
+            @RequestParam(defaultValue = "false") Boolean deleted,
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "20") int limit,
+            @CookieValue(required = false) String guestId,
+            HttpSession session) {
+        return chatRoomService.getChatRoomMessages(chatRoomService.getGlobalChatRoomId(), parentId, deleted, cursor,
+                limit, guestId, session);
+    }
+
+    @GetMapping("/{chatRoomId}/message/all")
+    public CursorPageResponse<ChatRoomMessageResponse> getMessages(
+            @PathVariable Long chatRoomId,
+            @RequestParam(required = false) Long parentId,
+            @RequestParam(defaultValue = "false") Boolean deleted,
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "20") int limit,
+            @CookieValue(required = false) String guestId,
+            HttpSession session) {
+        return chatRoomService.getChatRoomMessages(chatRoomId, parentId, deleted, cursor, limit, guestId, session);
+    }
+
+    @PostMapping("/global/message/add")
+    public MessageModel addGlobalMessage(@Valid @RequestBody ChatRoomRequest chatRoom,
+            @CookieValue(required = false) String guestId, HttpSession session) {
+        return chatRoomService.addChatRoomMessage(chatRoomService.getGlobalChatRoomId(), chatRoom, guestId, session);
     }
 
     @PostMapping("/{chatRoomId}/message/add")

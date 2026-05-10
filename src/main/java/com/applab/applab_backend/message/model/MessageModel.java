@@ -25,7 +25,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @Entity
 @Table(name = "messages", indexes = {
-        @Index(name = "idx_messages_context_type_context_id_parent_id_created_at", columnList = "context_type, context_id, parent_id, created_at")
+        @Index(name = "idx_messages_context_type_context_id_parent_id_id", columnList = "context_type, context_id, parent_id, id")
 })
 public class MessageModel {
     @Id

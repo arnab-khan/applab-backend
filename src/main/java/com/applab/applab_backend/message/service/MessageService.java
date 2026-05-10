@@ -1,10 +1,8 @@
 package com.applab.applab_backend.message.service;
-
 import java.util.List;
 
-import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import com.applab.applab_backend.message.dto.MessageRequest;
@@ -51,18 +49,10 @@ public class MessageService {
         messageRepository.save(messageModel);
     }
 
-    public Page<MessageModel> getMessages(Long contextId, ContextType contextType, Long parentId, Boolean deleted,
-            String keyword, Pageable pageable) {
-        List<String> allowedSorts = List.of("createdAt", "updatedAt", "id");
-        for (Sort.Order order : pageable.getSort()) {
-            if (!allowedSorts.contains(order.getProperty())) {
-                throw new IllegalArgumentException(
-                        "Invalid sort field: " + order.getProperty() +
-                                ". Allowed fields: " + allowedSorts);
-            }
-        }
-
-        return messageRepository.searchMessages(contextId, contextType, parentId, deleted, keyword, pageable);
+    public List<MessageModel> getMessages(Long contextId, ContextType contextType, Long parentId, Boolean deleted,
+            Long cursor, int limit) {
+        Pageable pageable = PageRequest.of(0, limit + 1);
+        return messageRepository.findMessagesByCursor(contextId, contextType, parentId, deleted, cursor, pageable);
     }
 
     public MessageModel findMessageById(Long id) {
