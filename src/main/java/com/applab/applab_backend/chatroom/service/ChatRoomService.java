@@ -4,6 +4,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import com.applab.applab_backend.auth.model.UserModel;
@@ -33,6 +34,7 @@ public class ChatRoomService {
     private final MessageService messageService;
     private final GuestSessionService guestSessionService;
     private final UserRepository userRepository;
+    private final SimpMessagingTemplate messagingTemplate;
     private Long globalChatRoomId;
 
     public ChatRoomModel createChatRoom(ChatRoomRequest chatRoom) {
@@ -58,25 +60,6 @@ public class ChatRoomService {
         return globalChatRoomId;
     }
 
-    public MessageModel addChatRoomMessage(Long chatRoomId, ChatRoomRequest chatRoom, String guestId,
-            HttpSession session) {
-        if (!hasMessagePermission(MessageOperation.ADD, chatRoomId, null, guestId, session)) {
-            throwNoMessagePermission();
-        }
-
-        MessageRequest message = new MessageRequest();
-        message.setParentId(chatRoom.getParentId());
-        message.setContent(chatRoom.getContent());
-        message.setContextId(chatRoomId);
-        message.setContextType(ContextType.CHAT);
-        Long userId = (Long) session.getAttribute("userId");
-        message.setUserId(userId);
-        if (userId == null) {
-            message.setGuestSessionId(guestSessionService.getGuestSessionId(guestId));
-        }
-        return messageService.addMessage(message);
-    }
-
     public CursorPageResponse<ChatRoomMessageResponse> getChatRoomMessages(Long chatRoomId, Long parentId,
             Boolean deleted, Long cursor, int limit, String guestId, HttpSession session) {
         ChatRoomModel chatRoom = findChatRoomById(chatRoomId);
@@ -94,28 +77,55 @@ public class ChatRoomService {
         Map<Long, UserModel> usersById = getMessageUsersById(messages);
 
         List<ChatRoomMessageResponse> items = pageMessages.stream()
-                .map(message -> new ChatRoomMessageResponse(
-                        chatRoomId,
-                        message,
-                        getMessageAuthor(message, usersById),
-                        hasRoomMessagePermission(chatRoom.getRoomType(), MessageOperation.EDIT, message,
-                                identity.userId(), identity.guestSessionId()),
-                        hasRoomMessagePermission(chatRoom.getRoomType(), MessageOperation.DELETE, message,
-                                identity.userId(), identity.guestSessionId())))
+                .map(message -> toChatRoomMessageResponse(chatRoomId, chatRoom.getRoomType(), message, usersById,
+                        identity))
                 .toList();
 
         Long nextCursor = hasNext && !items.isEmpty() ? items.get(items.size() - 1).getMessage().getId() : null;
         return new CursorPageResponse<>(items, nextCursor, hasNext);
     }
 
-    public MessageModel editChatRoomMessage(Long chatRoomId, OptionalMessageRequest message, String guestId,
+    public ChatRoomMessageResponse addChatRoomMessage(Long chatRoomId, ChatRoomRequest chatRoom, String guestId,
+            HttpSession session) {
+        if (!hasMessagePermission(MessageOperation.ADD, chatRoomId, null, guestId, session)) {
+            throwNoMessagePermission();
+        }
+
+        MessageRequest message = new MessageRequest();
+        message.setParentId(chatRoom.getParentId());
+        message.setContent(chatRoom.getContent());
+        message.setContextId(chatRoomId);
+        message.setContextType(ContextType.CHAT);
+        Long userId = (Long) session.getAttribute("userId");
+        message.setUserId(userId);
+        if (userId == null) {
+            message.setGuestSessionId(guestSessionService.getGuestSessionId(guestId));
+        }
+        MessageModel savedMessage = messageService.addMessage(message);
+        ChatRoomModel chatRoomModel = findChatRoomById(chatRoomId);
+        MessagePermissionIdentity identity = getMessagePermissionIdentity(guestId, session);
+        Map<Long, UserModel> usersById = getMessageUsersById(List.of(savedMessage));
+        ChatRoomMessageResponse response = toChatRoomMessageResponse(chatRoomId, chatRoomModel.getRoomType(),
+                savedMessage, usersById, identity);
+        publishChatRoomMessageToWebSocket(response);
+        return response;
+    }
+
+    public ChatRoomMessageResponse editChatRoomMessage(Long chatRoomId, OptionalMessageRequest message, String guestId,
             HttpSession session) {
         MessageModel savedMessage = messageService.findMessageById(message.getId());
         if (!hasMessagePermission(MessageOperation.EDIT, chatRoomId, savedMessage, guestId, session)) {
             throwNoMessagePermission();
         }
 
-        return messageService.editMessage(message);
+        MessageModel editedMessage = messageService.editMessage(message);
+        ChatRoomModel chatRoomModel = findChatRoomById(chatRoomId);
+        MessagePermissionIdentity identity = getMessagePermissionIdentity(guestId, session);
+        Map<Long, UserModel> usersById = getMessageUsersById(List.of(editedMessage));
+        ChatRoomMessageResponse response = toChatRoomMessageResponse(chatRoomId, chatRoomModel.getRoomType(),
+                editedMessage, usersById, identity);
+        publishChatRoomMessageToWebSocket(response);
+        return response;
     }
 
     public void deleteChatRoomMessage(Long chatRoomId, Long messageId, String guestId, HttpSession session) {
@@ -170,6 +180,22 @@ public class ChatRoomService {
         }
 
         return new MessageAuthorResponse("GUEST", message.getGuestSessionId(), "Guest", null, null, null);
+    }
+
+    private ChatRoomMessageResponse toChatRoomMessageResponse(Long chatRoomId, RoomType roomType, MessageModel message,
+            Map<Long, UserModel> usersById, MessagePermissionIdentity identity) {
+        return new ChatRoomMessageResponse(
+                chatRoomId,
+                message,
+                getMessageAuthor(message, usersById),
+                hasRoomMessagePermission(roomType, MessageOperation.EDIT, message, identity.userId(),
+                        identity.guestSessionId()),
+                hasRoomMessagePermission(roomType, MessageOperation.DELETE, message, identity.userId(),
+                        identity.guestSessionId()));
+    }
+
+    private void publishChatRoomMessageToWebSocket(ChatRoomMessageResponse response) {
+        messagingTemplate.convertAndSend("/topic/chatroom-message", response);
     }
 
     private boolean hasRoomMessagePermission(RoomType roomType, MessageOperation operation, MessageModel message,

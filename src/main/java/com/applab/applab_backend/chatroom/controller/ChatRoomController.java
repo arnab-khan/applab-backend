@@ -14,9 +14,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.applab.applab_backend.chatroom.dto.ChatRoomMessageResponse;
 import com.applab.applab_backend.chatroom.dto.ChatRoomRequest;
 import com.applab.applab_backend.chatroom.dto.CursorPageResponse;
+import com.applab.applab_backend.chatroom.dto.GlobalChatRoomResponse;
 import com.applab.applab_backend.chatroom.service.ChatRoomService;
 import com.applab.applab_backend.message.dto.OptionalMessageRequest;
-import com.applab.applab_backend.message.model.MessageModel;
 
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
@@ -28,16 +28,9 @@ import lombok.RequiredArgsConstructor;
 public class ChatRoomController {
     private final ChatRoomService chatRoomService;
 
-    @GetMapping("/global/message/all")
-    public CursorPageResponse<ChatRoomMessageResponse> getGlobalMessages(
-            @RequestParam(required = false) Long parentId,
-            @RequestParam(defaultValue = "false") Boolean deleted,
-            @RequestParam(required = false) Long cursor,
-            @RequestParam(defaultValue = "20") int limit,
-            @CookieValue(required = false) String guestId,
-            HttpSession session) {
-        return chatRoomService.getChatRoomMessages(chatRoomService.getGlobalChatRoomId(), parentId, deleted, cursor,
-                limit, guestId, session);
+    @GetMapping("/global")
+    public GlobalChatRoomResponse getGlobalChatRoom() {
+        return new GlobalChatRoomResponse(chatRoomService.getGlobalChatRoomId());
     }
 
     @GetMapping("/{chatRoomId}/message/all")
@@ -52,20 +45,14 @@ public class ChatRoomController {
         return chatRoomService.getChatRoomMessages(chatRoomId, parentId, deleted, cursor, limit, guestId, session);
     }
 
-    @PostMapping("/global/message/add")
-    public MessageModel addGlobalMessage(@Valid @RequestBody ChatRoomRequest chatRoom,
-            @CookieValue(required = false) String guestId, HttpSession session) {
-        return chatRoomService.addChatRoomMessage(chatRoomService.getGlobalChatRoomId(), chatRoom, guestId, session);
-    }
-
     @PostMapping("/{chatRoomId}/message/add")
-    public MessageModel addMessage(@PathVariable Long chatRoomId, @Valid @RequestBody ChatRoomRequest chatRoom,
+    public ChatRoomMessageResponse addMessage(@PathVariable Long chatRoomId, @Valid @RequestBody ChatRoomRequest chatRoom,
             @CookieValue(required = false) String guestId, HttpSession session) {
         return chatRoomService.addChatRoomMessage(chatRoomId, chatRoom, guestId, session);
     }
 
     @PatchMapping("/{chatRoomId}/message/edit")
-    public MessageModel editMessage(@PathVariable Long chatRoomId, @Valid @RequestBody OptionalMessageRequest message,
+    public ChatRoomMessageResponse editMessage(@PathVariable Long chatRoomId, @Valid @RequestBody OptionalMessageRequest message,
             @CookieValue(required = false) String guestId, HttpSession session) {
         return chatRoomService.editChatRoomMessage(chatRoomId, message, guestId, session);
     }

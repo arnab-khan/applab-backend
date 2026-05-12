@@ -47,6 +47,9 @@ public class SecurityConfig {
                         // Allow authentication startpoint without any authentication
                         .requestMatchers("/auth/**").permitAll()
 
+                        // Allow WebSocket handshake without any authentication
+                        .requestMatchers("/ws", "/ws/**").permitAll()
+
                         // Allow chatroom endpoints without any authentication
                         .requestMatchers("/chatroom/**").permitAll()
 
