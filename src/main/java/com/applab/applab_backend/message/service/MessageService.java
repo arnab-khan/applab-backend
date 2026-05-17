@@ -27,6 +27,7 @@ public class MessageService {
         messageModel.setContextType(message.getContextType());
         messageModel.setUserId(message.getUserId());
         messageModel.setGuestSessionId(message.getGuestSessionId());
+        messageModel.setQuotedMessageId(message.getQuotedMessageId());
         messageModel.setContent(message.getContent());
         return messageRepository.save(messageModel);
     }
@@ -53,6 +54,20 @@ public class MessageService {
             Long cursor, int limit) {
         Pageable pageable = PageRequest.of(0, limit + 1);
         return messageRepository.findMessagesByCursor(contextId, contextType, parentId, deleted, cursor, pageable);
+    }
+
+    public MessageModel getMessageForResponse(MessageModel message) {
+        if (message.isDeleted()) {
+            message.setContent("");
+        }
+
+        return message;
+    }
+
+    public List<MessageModel> getMessagesForResponse(List<MessageModel> messages) {
+        return messages.stream()
+                .map(this::getMessageForResponse)
+                .toList();
     }
 
     public MessageModel findMessageById(Long id) {

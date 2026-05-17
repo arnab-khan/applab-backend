@@ -12,6 +12,7 @@ public class ChatRoomRequest implements ChatRoomValidation.OptionalNameValidatio
     private String name;
     private RoomType roomType;
     private Long parentId;
+    private Long quotedMessageId;
 
     @NotBlank(message = "Content is required")
     private String content;

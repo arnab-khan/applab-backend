@@ -14,5 +14,6 @@ public class MessageRequest implements MessageValidation.ParentIdValidation, Mes
     private ContextType contextType;
     private Long userId;
     private Long guestSessionId;
+    private Long quotedMessageId;
     private String content;
 }

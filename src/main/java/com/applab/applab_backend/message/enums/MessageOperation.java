@@ -4,5 +4,8 @@ public enum MessageOperation {
     GET,
     ADD,
     EDIT,
-    DELETE
+    DELETE,
+    REACTION_ADD,
+    REACTION_EDIT,
+    REACTION_DELETE
 }

@@ -17,6 +17,8 @@ import com.applab.applab_backend.chatroom.dto.CursorPageResponse;
 import com.applab.applab_backend.chatroom.dto.GlobalChatRoomResponse;
 import com.applab.applab_backend.chatroom.service.ChatRoomService;
 import com.applab.applab_backend.message.dto.OptionalMessageRequest;
+import com.applab.applab_backend.reaction.dto.ReactionEmojiRequest;
+import com.applab.applab_backend.reaction.model.ReactionModel;
 
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
@@ -37,7 +39,7 @@ public class ChatRoomController {
     public CursorPageResponse<ChatRoomMessageResponse> getMessages(
             @PathVariable Long chatRoomId,
             @RequestParam(required = false) Long parentId,
-            @RequestParam(defaultValue = "false") Boolean deleted,
+            @RequestParam(required = false) Boolean deleted,
             @RequestParam(required = false) Long cursor,
             @RequestParam(defaultValue = "20") int limit,
             @CookieValue(required = false) String guestId,
@@ -61,5 +63,12 @@ public class ChatRoomController {
     public void deleteMessage(@PathVariable Long chatRoomId, @PathVariable Long messageId,
             @CookieValue(required = false) String guestId, HttpSession session) {
         chatRoomService.deleteChatRoomMessage(chatRoomId, messageId, guestId, session);
+    }
+
+    @PostMapping("/message/{messageId}/reaction/add")
+    public ReactionModel addReaction(@PathVariable Long messageId,
+            @Valid @RequestBody ReactionEmojiRequest reaction, @CookieValue(required = false) String guestId,
+            HttpSession session) {
+        return chatRoomService.addChatRoomMessageReaction(messageId, reaction, guestId, session);
     }
 }
