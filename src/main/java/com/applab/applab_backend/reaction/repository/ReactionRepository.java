@@ -22,6 +22,12 @@ public interface ReactionRepository extends JpaRepository<ReactionModel, Long> {
     Optional<ReactionModel> findByContextIdAndContextTypeAndGuestSessionId(Long contextId, ContextType contextType,
             Long guestSessionId);
 
+    List<ReactionModel> findByContextIdInAndContextTypeAndUserId(List<Long> contextIds, ContextType contextType,
+            Long userId);
+
+    List<ReactionModel> findByContextIdInAndContextTypeAndGuestSessionId(List<Long> contextIds,
+            ContextType contextType, Long guestSessionId);
+
     @Query("""
                 SELECT new com.applab.applab_backend.reaction.dto.ReactionContextCountResponse(
                     r.contextId,
@@ -39,8 +45,10 @@ public interface ReactionRepository extends JpaRepository<ReactionModel, Long> {
                 SELECT r FROM ReactionModel r
                 WHERE r.contextId = :contextId
                 AND r.contextType = :contextType
+                AND (:emoji IS NULL OR r.emoji = :emoji)
                 AND (:cursor IS NULL OR r.id < :cursor)
                 ORDER BY r.id DESC
             """)
-    List<ReactionModel> findReactionsByCursor(Long contextId, ContextType contextType, Long cursor, Pageable pageable);
+    List<ReactionModel> findReactionsByCursor(Long contextId, ContextType contextType, String emoji, Long cursor,
+            Pageable pageable);
 }

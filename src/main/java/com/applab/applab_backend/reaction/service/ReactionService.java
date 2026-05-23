@@ -5,6 +5,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import com.applab.applab_backend.message.enums.ContextType;
@@ -73,9 +75,25 @@ public class ReactionService {
                 reaction.getContextType(), reaction.getGuestSessionId());
     }
 
-    // Returns all reactions for one context.
-    public List<ReactionModel> getReactionsByContext(Long contextId, ContextType contextType) {
-        return reactionRepository.findByContextIdAndContextTypeOrderByIdDesc(contextId, contextType);
+    public List<ReactionModel> getReactionsByContext(Long contextId, ContextType contextType, String emoji, Long cursor,
+            int limit) {
+        Pageable pageable = PageRequest.of(0, limit + 1);
+        return reactionRepository.findReactionsByCursor(contextId, contextType, emoji, cursor, pageable);
+    }
+
+    public Map<Long, ReactionModel> getReactionsByContextIdsAndAuthor(List<Long> contextIds,
+            ContextType contextType, Long userId, Long guestSessionId) {
+        if (contextIds.isEmpty() || (userId == null && guestSessionId == null)) {
+            return Map.of();
+        }
+
+        List<ReactionModel> reactions = userId != null
+                ? reactionRepository.findByContextIdInAndContextTypeAndUserId(contextIds, contextType, userId)
+                : reactionRepository.findByContextIdInAndContextTypeAndGuestSessionId(contextIds, contextType,
+                        guestSessionId);
+
+        return reactions.stream()
+                .collect(Collectors.toMap(ReactionModel::getContextId, reaction -> reaction));
     }
 
     // Finds one reaction by id or throws when it does not exist.

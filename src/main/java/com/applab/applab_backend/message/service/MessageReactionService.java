@@ -10,6 +10,7 @@ import com.applab.applab_backend.message.dto.MessageWithAuthorAndReactionsRespon
 import com.applab.applab_backend.message.enums.ContextType;
 import com.applab.applab_backend.message.model.MessageModel;
 import com.applab.applab_backend.reaction.dto.ReactionCountResponse;
+import com.applab.applab_backend.reaction.model.ReactionModel;
 import com.applab.applab_backend.reaction.service.ReactionService;
 
 import lombok.RequiredArgsConstructor;
@@ -22,23 +23,27 @@ public class MessageReactionService {
 
     // Returns messages with author details and grouped reaction counts.
     public List<MessageWithAuthorAndReactionsResponse> getMessageResponsesWithAuthorsAndReactions(
-            List<MessageModel> messages, ContextType reactionContextType) {
+            List<MessageModel> messages, ContextType reactionContextType, Long userId, Long guestSessionId) {
+        List<Long> messageIds = messages.stream().map(MessageModel::getId).toList();
         List<MessageWithAuthorResponse> messageResponses = messageAuthorService.getMessageResponsesWithAuthors(messages);
         Map<Long, List<ReactionCountResponse>> reactionCountsByMessageId = reactionService
-                .getReactionCountsByContextIds(messages.stream().map(MessageModel::getId).toList(),
-                        reactionContextType);
+                .getReactionCountsByContextIds(messageIds, reactionContextType);
+        Map<Long, ReactionModel> myReactionsByMessageId = reactionService
+                .getReactionsByContextIdsAndAuthor(messageIds, reactionContextType, userId, guestSessionId);
 
         return messageResponses.stream()
                 .map(messageResponse -> new MessageWithAuthorAndReactionsResponse(
                         messageResponse.getMessage(),
                         messageResponse.getAuthor(),
-                        reactionCountsByMessageId.getOrDefault(messageResponse.getMessage().getId(), List.of())))
+                        reactionCountsByMessageId.getOrDefault(messageResponse.getMessage().getId(), List.of()),
+                        myReactionsByMessageId.get(messageResponse.getMessage().getId())))
                 .toList();
     }
 
     // Reuses the list response builder for one message.
     public MessageWithAuthorAndReactionsResponse getMessageResponseWithAuthorAndReactions(MessageModel message,
-            ContextType reactionContextType) {
-        return getMessageResponsesWithAuthorsAndReactions(List.of(message), reactionContextType).get(0);
+            ContextType reactionContextType, Long userId, Long guestSessionId) {
+        return getMessageResponsesWithAuthorsAndReactions(List.of(message), reactionContextType, userId,
+                guestSessionId).get(0);
     }
 }

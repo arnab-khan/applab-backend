@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.applab.applab_backend.chatroom.dto.ChatRoomMessageResponse;
+import com.applab.applab_backend.chatroom.dto.ChatRoomReactionPageResponse;
 import com.applab.applab_backend.chatroom.dto.ChatRoomRequest;
 import com.applab.applab_backend.chatroom.dto.CursorPageResponse;
 import com.applab.applab_backend.chatroom.dto.GlobalChatRoomResponse;
@@ -70,5 +71,18 @@ public class ChatRoomController {
             @Valid @RequestBody ReactionEmojiRequest reaction, @CookieValue(required = false) String guestId,
             HttpSession session) {
         return chatRoomService.addChatRoomMessageReaction(messageId, reaction, guestId, session);
+    }
+
+    @GetMapping("/{chatRoomId}/message/{messageId}/reaction/all")
+    public ChatRoomReactionPageResponse getReactions(
+            @PathVariable Long chatRoomId,
+            @PathVariable Long messageId,
+            @RequestParam(required = false) String emoji,
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "20") int limit,
+            @CookieValue(required = false) String guestId,
+            HttpSession session) {
+        return chatRoomService.getChatRoomMessageReactions(chatRoomId, messageId, emoji, cursor, limit, guestId,
+                session);
     }
 }
