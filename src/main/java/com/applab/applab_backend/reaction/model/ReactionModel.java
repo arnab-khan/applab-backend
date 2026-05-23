@@ -24,7 +24,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @Entity
 @Table(name = "reactions", indexes = {
-        @Index(name = "idx_reactions_context_type_context_id_emoji", columnList = "context_type, context_id, emoji")
+        @Index(name = "idx_reactions_context_type_context_id_emoji_id", columnList = "context_type, context_id, emoji, id")
 })
 public class ReactionModel {
     @Id

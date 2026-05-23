@@ -1,7 +1,10 @@
 package com.applab.applab_backend.chatroom.service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -16,10 +19,12 @@ import com.applab.applab_backend.chatroom.model.ChatRoomModel;
 import com.applab.applab_backend.chatroom.repository.ChatRoomRepository;
 import com.applab.applab_backend.message.dto.MessageRequest;
 import com.applab.applab_backend.message.dto.MessageWithAuthorAndReactionsResponse;
+import com.applab.applab_backend.message.dto.MessageWithAuthorResponse;
 import com.applab.applab_backend.message.dto.OptionalMessageRequest;
 import com.applab.applab_backend.message.enums.ContextType;
 import com.applab.applab_backend.message.enums.MessageOperation;
 import com.applab.applab_backend.message.model.MessageModel;
+import com.applab.applab_backend.message.service.MessageAuthorService;
 import com.applab.applab_backend.message.service.MessageReactionService;
 import com.applab.applab_backend.message.service.MessageService;
 import com.applab.applab_backend.reaction.dto.ReactionEmojiRequest;
@@ -38,6 +43,7 @@ import lombok.RequiredArgsConstructor;
 public class ChatRoomService {
     private final ChatRoomRepository chatRoomRepository;
     private final MessageService messageService;
+    private final MessageAuthorService messageAuthorService;
     private final MessageReactionService messageReactionService;
     private final ReactionService reactionService;
     private final GuestSessionService guestSessionService;
@@ -89,12 +95,14 @@ public class ChatRoomService {
         // Only normalizedLimit rows are returned to the client.
         List<MessageModel> pageMessages = hasNext ? messages.subList(0, normalizedLimit) : messages;
 
-        List<ChatRoomMessageResponse> items = messageReactionService
+        List<MessageWithAuthorAndReactionsResponse> messageResponses = messageReactionService
                 .getMessageResponsesWithAuthorsAndReactions(pageMessages, ContextType.CHAT, identity.userId(),
-                        identity.guestSessionId())
-                .stream()
+                        identity.guestSessionId());
+        Map<Long, MessageWithAuthorResponse> quotedMessagesById = getQuotedMessagesById(pageMessages);
+
+        List<ChatRoomMessageResponse> items = messageResponses.stream()
                 .map(messageResponse -> toChatRoomMessageResponse(chatRoomId, chatRoom.getRoomType(), messageResponse,
-                        identity))
+                        quotedMessagesById.get(messageResponse.getMessage().getQuotedMessageId()), identity))
                 .toList();
 
         // The next request should start after the last returned message.
@@ -125,7 +133,7 @@ public class ChatRoomService {
         ChatRoomMessageResponse response = toChatRoomMessageResponse(chatRoomId, chatRoomModel.getRoomType(),
                 messageReactionService.getMessageResponseWithAuthorAndReactions(savedMessage, ContextType.CHAT,
                         identity.userId(), identity.guestSessionId()),
-                identity);
+                getQuotedMessage(savedMessage), identity);
         publishChatRoomMessageToWebSocket(response);
         return response;
     }
@@ -141,7 +149,7 @@ public class ChatRoomService {
         ChatRoomMessageResponse response = toChatRoomMessageResponse(chatRoomId, chatRoomModel.getRoomType(),
                 messageReactionService.getMessageResponseWithAuthorAndReactions(editedMessage, ContextType.CHAT,
                         identity.userId(), identity.guestSessionId()),
-                identity);
+                getQuotedMessage(editedMessage), identity);
         publishChatRoomMessageToWebSocket(response);
         return response;
     }
@@ -192,7 +200,7 @@ public class ChatRoomService {
         ChatRoomMessageResponse response = toChatRoomMessageResponse(chatRoomId, chatRoomModel.getRoomType(),
                 messageReactionService.getMessageResponseWithAuthorAndReactions(message, ContextType.CHAT,
                         identity.userId(), identity.guestSessionId()),
-                identity);
+                getQuotedMessage(message), identity);
         publishChatRoomMessageToWebSocket(response);
 
         return updatedReaction;
@@ -289,17 +297,40 @@ public class ChatRoomService {
     }
     // ========== Permissions: end ==========
 
-    // ========== Response and publishing: start ==========
     private ChatRoomMessageResponse toChatRoomMessageResponse(Long chatRoomId, RoomType roomType,
-            MessageWithAuthorAndReactionsResponse messageResponse, MessagePermissionIdentity identity) {
+            MessageWithAuthorAndReactionsResponse messageResponse, MessageWithAuthorResponse quotedMessage,
+            MessagePermissionIdentity identity) {
         return new ChatRoomMessageResponse(
                 chatRoomId,
                 messageResponse.getMessage(),
                 messageResponse.getAuthor(),
+                quotedMessage,
                 messageResponse.getReactions(),
                 messageResponse.getMyReaction(),
                 hasChatRoomPermission(MessageOperation.EDIT, roomType, messageResponse.getMessage(), null, identity),
                 hasChatRoomPermission(MessageOperation.DELETE, roomType, messageResponse.getMessage(), null, identity));
+    }
+
+    private Map<Long, MessageWithAuthorResponse> getQuotedMessagesById(List<MessageModel> messages) {
+        List<Long> quotedMessageIds = messages.stream()
+                .map(MessageModel::getQuotedMessageId)
+                .filter(quotedMessageId -> quotedMessageId != null)
+                .distinct()
+                .toList();
+
+        return messageAuthorService.getMessageResponsesWithAuthors(messageService.findMessagesByIds(quotedMessageIds))
+                .stream()
+                .collect(Collectors.toMap(
+                        messageResponse -> messageResponse.getMessage().getId(),
+                        Function.identity()));
+    }
+
+    private MessageWithAuthorResponse getQuotedMessage(MessageModel message) {
+        if (message.getQuotedMessageId() == null) {
+            return null;
+        }
+
+        return getQuotedMessagesById(List.of(message)).get(message.getQuotedMessageId());
     }
 
     private void publishChatRoomMessageToWebSocket(ChatRoomMessageResponse response) {

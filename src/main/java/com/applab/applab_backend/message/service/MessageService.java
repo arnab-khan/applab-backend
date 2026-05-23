@@ -70,6 +70,14 @@ public class MessageService {
                 .toList();
     }
 
+    public List<MessageModel> findMessagesByIds(List<Long> ids) {
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+
+        return messageRepository.findAllById(ids);
+    }
+
     public MessageModel findMessageById(Long id) {
         if (id == null) {
             throw new RuntimeException("Message id is required");
