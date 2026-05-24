@@ -16,7 +16,11 @@ import lombok.RequiredArgsConstructor;
 public class GuestSessionService {
     private final GuestSessionRepository guestSessionRepository;
 
-    public void createGuestSession(HttpServletResponse response) {
+    public void createGuestSession(String guestId, HttpServletResponse response) {
+        if (getGuestSessionId(guestId) != null) {
+            return;
+        }
+
         GuestSessionModel guestSession = new GuestSessionModel();
         guestSession.setGuestId(UUID.randomUUID().toString());
         GuestSessionModel savedGuestSession = guestSessionRepository.save(guestSession);
@@ -34,5 +38,9 @@ public class GuestSessionService {
         return guestSessionRepository.findByGuestId(guestId)
                 .map(GuestSessionModel::getId)
                 .orElse(null);
+    }
+
+    public boolean hasGuestSession(String guestId) {
+        return getGuestSessionId(guestId) != null;
     }
 }
