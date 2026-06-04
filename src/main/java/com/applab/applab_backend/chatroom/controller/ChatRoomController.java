@@ -17,6 +17,7 @@ import com.applab.applab_backend.chatroom.dto.ChatRoomRequest;
 import com.applab.applab_backend.chatroom.dto.CursorPageResponse;
 import com.applab.applab_backend.chatroom.dto.GlobalChatRoomResponse;
 import com.applab.applab_backend.chatroom.service.ChatRoomService;
+import com.applab.applab_backend.message.enums.MessageDirection;
 import com.applab.applab_backend.message.dto.OptionalMessageRequest;
 import com.applab.applab_backend.reaction.dto.ReactionEmojiRequest;
 import com.applab.applab_backend.reaction.model.ReactionModel;
@@ -42,10 +43,13 @@ public class ChatRoomController {
             @RequestParam(required = false) Long parentId,
             @RequestParam(required = false) Boolean deleted,
             @RequestParam(required = false) Long cursor,
-            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(required = false) Long uptoId,
+            @RequestParam(defaultValue = "OLDER") MessageDirection direction,
+            @RequestParam(defaultValue = "10") int limit,
             @CookieValue(required = false) String guestId,
             HttpSession session) {
-        return chatRoomService.getChatRoomMessages(chatRoomId, parentId, deleted, cursor, limit, guestId, session);
+        return chatRoomService.getChatRoomMessages(chatRoomId, parentId, deleted, cursor, uptoId, direction, limit, guestId,
+                session);
     }
 
     @PostMapping("/{chatRoomId}/message/add")

@@ -22,6 +22,7 @@ import com.applab.applab_backend.message.dto.MessageWithAuthorAndReactionsRespon
 import com.applab.applab_backend.message.dto.MessageWithAuthorResponse;
 import com.applab.applab_backend.message.dto.OptionalMessageRequest;
 import com.applab.applab_backend.message.enums.ContextType;
+import com.applab.applab_backend.message.enums.MessageDirection;
 import com.applab.applab_backend.message.enums.MessageOperation;
 import com.applab.applab_backend.message.model.MessageModel;
 import com.applab.applab_backend.message.service.MessageAuthorService;
@@ -78,7 +79,8 @@ public class ChatRoomService {
 
     // ========== Messages: start ==========
     public CursorPageResponse<ChatRoomMessageResponse> getChatRoomMessages(Long chatRoomId, Long parentId,
-            Boolean deleted, Long cursor, int limit, String guestId, HttpSession session) {
+            Boolean deleted, Long cursor, Long uptoId, MessageDirection direction, int limit, String guestId,
+            HttpSession session) {
         ChatRoomModel chatRoom = findChatRoomById(chatRoomId);
         requireChatRoomPermission(MessageOperation.GET, chatRoom.getRoomType(), null, null,
                 new MessagePermissionIdentity(null, null));
@@ -89,7 +91,7 @@ public class ChatRoomService {
         // messages.
         int normalizedLimit = Math.min(Math.max(limit, 1), 100);
         List<MessageModel> messages = messageService.getMessages(chatRoomId, ContextType.CHAT, parentId, deleted,
-                cursor, normalizedLimit);
+                cursor, uptoId, direction, normalizedLimit);
         // MessageService loads limit + 1 rows.
         boolean hasNext = messages.size() > normalizedLimit;
         // Only normalizedLimit rows are returned to the client.
@@ -105,8 +107,8 @@ public class ChatRoomService {
                         quotedMessagesById.get(messageResponse.getMessage().getQuotedMessageId()), identity))
                 .toList();
 
-        // The next request should start after the last returned message.
-        Long nextCursor = hasNext && !items.isEmpty() ? items.get(items.size() - 1).getMessage().getId() : null;
+        // The next request should start from the extra fetched message.
+        Long nextCursor = hasNext ? messages.get(normalizedLimit).getId() : null;
         // CursorPageResponse includes the page items, the next cursor, and whether more
         // rows exist.
         return new CursorPageResponse<>(items, nextCursor, hasNext);

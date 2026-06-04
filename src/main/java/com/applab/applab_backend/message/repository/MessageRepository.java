@@ -17,9 +17,23 @@ public interface MessageRepository extends JpaRepository<MessageModel, Long> {
                 AND m.contextType = :contextType
                 AND (:parentId IS NULL OR m.parentId = :parentId)
                 AND (:deleted IS NULL OR m.deleted = :deleted)
-                AND (:cursor IS NULL OR m.id < :cursor)
+                AND (:cursor IS NULL OR m.id <= :cursor)
+                AND (:uptoId IS NULL OR m.id >= :uptoId)
                 ORDER BY m.id DESC
             """)
-    List<MessageModel> findMessagesByCursor(Long contextId, ContextType contextType, Long parentId, Boolean deleted,
-            Long cursor, Pageable pageable);
+    List<MessageModel> findOlderMessagesByCursor(Long contextId, ContextType contextType, Long parentId,
+            Boolean deleted, Long cursor, Long uptoId, Pageable pageable);
+
+    @Query("""
+                SELECT m FROM MessageModel m
+                WHERE m.contextId = :contextId
+                AND m.contextType = :contextType
+                AND (:parentId IS NULL OR m.parentId = :parentId)
+                AND (:deleted IS NULL OR m.deleted = :deleted)
+                AND (:cursor IS NULL OR m.id >= :cursor)
+                AND (:uptoId IS NULL OR m.id <= :uptoId)
+                ORDER BY m.id ASC
+            """)
+    List<MessageModel> findNewerMessagesByCursor(Long contextId, ContextType contextType, Long parentId, Boolean deleted,
+            Long cursor, Long uptoId, Pageable pageable);
 }

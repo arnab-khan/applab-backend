@@ -3,6 +3,7 @@ package com.applab.applab_backend.message.model;
 import java.time.Instant;
 
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import com.applab.applab_backend.message.enums.ContextType;
@@ -24,6 +25,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @Entity
+@SQLDelete(sql = "UPDATE messages SET deleted = true, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
 @Table(name = "messages", indexes = {
         @Index(name = "idx_messages_context_type_context_id_parent_id_id", columnList = "context_type, context_id, parent_id, id")
 })

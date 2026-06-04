@@ -1,4 +1,5 @@
 package com.applab.applab_backend.message.service;
+
 import java.util.List;
 
 import org.springframework.data.domain.PageRequest;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Service;
 import com.applab.applab_backend.message.dto.MessageRequest;
 import com.applab.applab_backend.message.dto.OptionalMessageRequest;
 import com.applab.applab_backend.message.enums.ContextType;
+import com.applab.applab_backend.message.enums.MessageDirection;
 import com.applab.applab_backend.message.model.MessageModel;
 import com.applab.applab_backend.message.repository.MessageRepository;
 
@@ -51,9 +53,15 @@ public class MessageService {
     }
 
     public List<MessageModel> getMessages(Long contextId, ContextType contextType, Long parentId, Boolean deleted,
-            Long cursor, int limit) {
+            Long cursor, Long uptoId, MessageDirection direction, int limit) {
         Pageable pageable = PageRequest.of(0, limit + 1);
-        return messageRepository.findMessagesByCursor(contextId, contextType, parentId, deleted, cursor, pageable);
+        if (direction == MessageDirection.NEWER) {
+            return messageRepository.findNewerMessagesByCursor(contextId, contextType, parentId, deleted, cursor, uptoId,
+                    pageable);
+        }
+
+        return messageRepository.findOlderMessagesByCursor(contextId, contextType, parentId, deleted, cursor, uptoId,
+                pageable);
     }
 
     public MessageModel getMessageForResponse(MessageModel message) {
