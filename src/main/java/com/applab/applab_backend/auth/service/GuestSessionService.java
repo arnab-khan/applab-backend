@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
+import com.applab.applab_backend.auth.dto.GuestSessionExistsResponse;
 import com.applab.applab_backend.auth.model.GuestSessionModel;
 import com.applab.applab_backend.auth.repository.GuestSessionRepository;
 
@@ -40,7 +41,8 @@ public class GuestSessionService {
                 .orElse(null);
     }
 
-    public boolean hasGuestSession(String guestId) {
-        return getGuestSessionId(guestId) != null;
+    public GuestSessionExistsResponse hasGuestSession(String guestId) {
+        Long guestSessionId = getGuestSessionId(guestId);
+        return new GuestSessionExistsResponse(guestSessionId != null, guestSessionId);
     }
 }
