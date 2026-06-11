@@ -20,7 +20,7 @@ import com.applab.applab_backend.chatroom.repository.ChatRoomRepository;
 import com.applab.applab_backend.message.dto.MessageRequest;
 import com.applab.applab_backend.message.dto.MessageWithAuthorAndReactionsResponse;
 import com.applab.applab_backend.message.dto.MessageWithAuthorResponse;
-import com.applab.applab_backend.message.dto.OptionalMessageRequest;
+import com.applab.applab_backend.message.dto.EditMessageRequest;
 import com.applab.applab_backend.message.enums.ContextType;
 import com.applab.applab_backend.message.enums.MessageDirection;
 import com.applab.applab_backend.message.enums.MessageOperation;
@@ -136,11 +136,11 @@ public class ChatRoomService {
                 messageReactionService.getMessageResponseWithAuthorAndReactions(savedMessage, ContextType.CHAT,
                         identity.userId(), identity.guestSessionId()),
                 getQuotedMessage(savedMessage), identity);
-        publishChatRoomMessageToWebSocket(response);
+        publishChatRoomMessageToWebSocket(response, MessageOperation.ADD);
         return response;
     }
 
-    public ChatRoomMessageResponse editChatRoomMessage(Long chatRoomId, OptionalMessageRequest message, String guestId,
+    public ChatRoomMessageResponse editChatRoomMessage(Long chatRoomId, EditMessageRequest message, String guestId,
             HttpSession session) {
         MessageModel savedMessage = messageService.findMessageById(message.getId());
         ChatRoomModel chatRoomModel = findChatRoomById(chatRoomId);
@@ -152,7 +152,7 @@ public class ChatRoomService {
                 messageReactionService.getMessageResponseWithAuthorAndReactions(editedMessage, ContextType.CHAT,
                         identity.userId(), identity.guestSessionId()),
                 getQuotedMessage(editedMessage), identity);
-        publishChatRoomMessageToWebSocket(response);
+        publishChatRoomMessageToWebSocket(response, MessageOperation.EDIT);
         return response;
     }
 
@@ -163,6 +163,12 @@ public class ChatRoomService {
         requireChatRoomPermission(MessageOperation.DELETE, chatRoomModel.getRoomType(), message, null, identity);
 
         messageService.deleteMessage(messageId);
+        MessageModel deletedMessage = messageService.findMessageById(messageId);
+        ChatRoomMessageResponse response = toChatRoomMessageResponse(chatRoomId, chatRoomModel.getRoomType(),
+                messageReactionService.getMessageResponseWithAuthorAndReactions(deletedMessage, ContextType.CHAT,
+                        identity.userId(), identity.guestSessionId()),
+                getQuotedMessage(deletedMessage), identity);
+        publishChatRoomMessageToWebSocket(response, MessageOperation.DELETE);
     }
     // ========== Messages: end ==========
 
@@ -203,7 +209,7 @@ public class ChatRoomService {
                 messageReactionService.getMessageResponseWithAuthorAndReactions(message, ContextType.CHAT,
                         identity.userId(), identity.guestSessionId()),
                 getQuotedMessage(message), identity);
-        publishChatRoomMessageToWebSocket(response);
+        publishChatRoomMessageToWebSocket(response, operation);
 
         return updatedReaction;
     }
@@ -335,8 +341,10 @@ public class ChatRoomService {
         return getQuotedMessagesById(List.of(message)).get(message.getQuotedMessageId());
     }
 
-    private void publishChatRoomMessageToWebSocket(ChatRoomMessageResponse response) {
-        messagingTemplate.convertAndSend("/topic/chatroom-message", response);
+    private void publishChatRoomMessageToWebSocket(ChatRoomMessageResponse response, MessageOperation action) {
+        messagingTemplate.convertAndSend("/topic/chatroom-message", Map.of(
+                "message", response,
+                "action", action));
     }
     // ========== Response and publishing: end ==========
 

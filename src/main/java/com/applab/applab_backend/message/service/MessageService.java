@@ -7,7 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import com.applab.applab_backend.message.dto.MessageRequest;
-import com.applab.applab_backend.message.dto.OptionalMessageRequest;
+import com.applab.applab_backend.message.dto.EditMessageRequest;
 import com.applab.applab_backend.message.enums.ContextType;
 import com.applab.applab_backend.message.enums.MessageDirection;
 import com.applab.applab_backend.message.model.MessageModel;
@@ -34,12 +34,16 @@ public class MessageService {
         return messageRepository.save(messageModel);
     }
 
-    public MessageModel editMessage(OptionalMessageRequest message) {
+    public MessageModel editMessage(EditMessageRequest message) {
         MessageModel messageModel = findMessageById(message.getId());
 
         if (message.getContent() != null) {
             messageModel.setContent(message.getContent());
             messageModel.setEdited(true);
+        }
+
+        if (Boolean.TRUE.equals(message.getRemoveQuotedMessage())) {
+            messageModel.setQuotedMessageId(null);
         }
 
         return messageRepository.save(messageModel);

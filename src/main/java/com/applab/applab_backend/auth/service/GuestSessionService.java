@@ -17,9 +17,12 @@ import lombok.RequiredArgsConstructor;
 public class GuestSessionService {
     private final GuestSessionRepository guestSessionRepository;
 
-    public void createGuestSession(String guestId, HttpServletResponse response) {
-        if (getGuestSessionId(guestId) != null) {
-            return;
+    public GuestSessionExistsResponse createGuestSession(String guestId, HttpServletResponse response) {
+        if (guestId != null) {
+            GuestSessionModel existingGuestSession = guestSessionRepository.findByGuestId(guestId).orElse(null);
+            if (existingGuestSession != null) {
+                return new GuestSessionExistsResponse(true, existingGuestSession.getId());
+            }
         }
 
         GuestSessionModel guestSession = new GuestSessionModel();
@@ -29,6 +32,8 @@ public class GuestSessionService {
         Cookie guestIdCookie = new Cookie("guestId", savedGuestSession.getGuestId());
         guestIdCookie.setPath("/");
         response.addCookie(guestIdCookie);
+
+        return new GuestSessionExistsResponse(true, savedGuestSession.getId());
     }
 
     public Long getGuestSessionId(String guestId) {

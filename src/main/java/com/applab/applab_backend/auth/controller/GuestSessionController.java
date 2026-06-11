@@ -19,9 +19,9 @@ public class GuestSessionController {
     private final GuestSessionService guestSessionService;
 
     @PostMapping("/create")
-    public void createGuestSession(@CookieValue(value = "guestId", required = false) String guestId,
+    public GuestSessionExistsResponse createGuestSession(@CookieValue(value = "guestId", required = false) String guestId,
             HttpServletResponse response) {
-        guestSessionService.createGuestSession(guestId, response);
+        return guestSessionService.createGuestSession(guestId, response);
     }
 
     @GetMapping("/exists")

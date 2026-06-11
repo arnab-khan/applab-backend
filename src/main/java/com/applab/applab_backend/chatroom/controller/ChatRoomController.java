@@ -18,7 +18,7 @@ import com.applab.applab_backend.chatroom.dto.CursorPageResponse;
 import com.applab.applab_backend.chatroom.dto.GlobalChatRoomResponse;
 import com.applab.applab_backend.chatroom.service.ChatRoomService;
 import com.applab.applab_backend.message.enums.MessageDirection;
-import com.applab.applab_backend.message.dto.OptionalMessageRequest;
+import com.applab.applab_backend.message.dto.EditMessageRequest;
 import com.applab.applab_backend.reaction.dto.ReactionEmojiRequest;
 import com.applab.applab_backend.reaction.model.ReactionModel;
 
@@ -59,7 +59,7 @@ public class ChatRoomController {
     }
 
     @PatchMapping("/{chatRoomId}/message/edit")
-    public ChatRoomMessageResponse editMessage(@PathVariable Long chatRoomId, @Valid @RequestBody OptionalMessageRequest message,
+    public ChatRoomMessageResponse editMessage(@PathVariable Long chatRoomId, @Valid @RequestBody EditMessageRequest message,
             @CookieValue(required = false) String guestId, HttpSession session) {
         return chatRoomService.editChatRoomMessage(chatRoomId, message, guestId, session);
     }
