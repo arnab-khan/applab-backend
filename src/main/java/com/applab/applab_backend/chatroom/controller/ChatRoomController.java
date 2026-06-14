@@ -20,11 +20,14 @@ import com.applab.applab_backend.chatroom.service.ChatRoomService;
 import com.applab.applab_backend.message.enums.MessageDirection;
 import com.applab.applab_backend.message.dto.EditMessageRequest;
 import com.applab.applab_backend.reaction.dto.ReactionEmojiRequest;
+import com.applab.applab_backend.reaction.dto.ReactionCountResponse;
 import com.applab.applab_backend.reaction.model.ReactionModel;
 
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/chatroom")
@@ -88,5 +91,14 @@ public class ChatRoomController {
             HttpSession session) {
         return chatRoomService.getChatRoomMessageReactions(chatRoomId, messageId, emoji, cursor, limit, guestId,
                 session);
+    }
+
+    @GetMapping("/{chatRoomId}/message/{messageId}/reaction/count/all")
+    public List<ReactionCountResponse> getReactionCounts(
+            @PathVariable Long chatRoomId,
+            @PathVariable Long messageId,
+            @CookieValue(required = false) String guestId,
+            HttpSession session) {
+        return chatRoomService.getChatRoomMessageReactionCounts(chatRoomId, messageId, guestId, session);
     }
 }

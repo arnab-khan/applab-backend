@@ -46,7 +46,7 @@ public interface ReactionRepository extends JpaRepository<ReactionModel, Long> {
                 WHERE r.contextId = :contextId
                 AND r.contextType = :contextType
                 AND (:emoji IS NULL OR r.emoji = :emoji)
-                AND (:cursor IS NULL OR r.id < :cursor)
+                AND (:cursor IS NULL OR r.id <= :cursor)
                 ORDER BY r.id DESC
             """)
     List<ReactionModel> findReactionsByCursor(Long contextId, ContextType contextType, String emoji, Long cursor,

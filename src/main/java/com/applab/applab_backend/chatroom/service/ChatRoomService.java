@@ -232,11 +232,23 @@ public class ChatRoomService {
 
         List<ReactionWithAuthorResponse> items = reactionAuthorService.getReactionResponsesWithAuthors(pageReactions);
 
-        Long nextCursor = hasNext && !items.isEmpty() ? items.get(items.size() - 1).reaction().getId() : null;
-        List<ReactionCountResponse> reactionCounts = reactionService
+        Long nextCursor = hasNext ? reactions.get(normalizedLimit).getId() : null;
+        return new ChatRoomReactionPageResponse(items, nextCursor, hasNext);
+    }
+
+    public List<ReactionCountResponse> getChatRoomMessageReactionCounts(Long chatRoomId, Long messageId,
+            String guestId, HttpSession session) {
+        MessageModel message = findChatRoomMessageById(messageId);
+        ChatRoomModel chatRoomModel = findChatRoomById(chatRoomId);
+        MessagePermissionIdentity identity = getMessagePermissionIdentity(guestId, session);
+        if (!chatRoomId.equals(message.getContextId())) {
+            throwNoMessagePermission();
+        }
+        requireChatRoomPermission(MessageOperation.GET, chatRoomModel.getRoomType(), message, null, identity);
+
+        return reactionService
                 .getReactionCountsByContextIds(List.of(messageId), ContextType.CHAT)
                 .getOrDefault(messageId, List.of());
-        return new ChatRoomReactionPageResponse(items, nextCursor, hasNext, reactionCounts);
     }
     // ========== Reactions: end ==========
 
