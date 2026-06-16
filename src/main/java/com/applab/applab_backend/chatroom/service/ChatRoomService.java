@@ -17,6 +17,7 @@ import com.applab.applab_backend.chatroom.dto.CursorPageResponse;
 import com.applab.applab_backend.chatroom.enums.RoomType;
 import com.applab.applab_backend.chatroom.model.ChatRoomModel;
 import com.applab.applab_backend.chatroom.repository.ChatRoomRepository;
+import com.applab.applab_backend.common.constant.WebSocketDestination;
 import com.applab.applab_backend.message.dto.MessageRequest;
 import com.applab.applab_backend.message.dto.MessageWithAuthorAndReactionsResponse;
 import com.applab.applab_backend.message.dto.MessageWithAuthorResponse;
@@ -170,6 +171,23 @@ public class ChatRoomService {
                 getQuotedMessage(deletedMessage), identity);
         publishChatRoomMessageToWebSocket(response, MessageOperation.DELETE);
     }
+
+    public void publishChatRoomTyping(Long chatRoomId, String guestId, Long userId) {
+        ChatRoomModel chatRoomModel = findChatRoomById(chatRoomId);
+        MessagePermissionIdentity identity = getMessagePermissionIdentity(guestId, userId);
+        requireChatRoomPermission(MessageOperation.GET, chatRoomModel.getRoomType(), null, null, identity);
+
+        MessageModel typingMessage = new MessageModel();
+        typingMessage.setContextId(chatRoomId);
+        typingMessage.setContextType(ContextType.CHAT);
+        typingMessage.setUserId(identity.userId());
+        typingMessage.setGuestSessionId(identity.guestSessionId());
+
+        messagingTemplate.convertAndSend(WebSocketDestination.TOPIC + "/chatroom-typing", Map.of(
+                "chatRoomId", chatRoomId,
+                "author", messageAuthorService.getMessageResponsesWithAuthors(List.of(typingMessage)).get(0)
+                        .getAuthor()));
+    }
     // ========== Messages: end ==========
 
     // ========== Reactions: start ==========
@@ -275,6 +293,10 @@ public class ChatRoomService {
 
     private MessagePermissionIdentity getMessagePermissionIdentity(String guestId, HttpSession session) {
         Long userId = session != null ? (Long) session.getAttribute("userId") : null;
+        return getMessagePermissionIdentity(guestId, userId);
+    }
+
+    private MessagePermissionIdentity getMessagePermissionIdentity(String guestId, Long userId) {
         Long guestSessionId = userId == null ? guestSessionService.getGuestSessionId(guestId) : null;
         return new MessagePermissionIdentity(userId, guestSessionId);
     }
@@ -354,7 +376,7 @@ public class ChatRoomService {
     }
 
     private void publishChatRoomMessageToWebSocket(ChatRoomMessageResponse response, MessageOperation action) {
-        messagingTemplate.convertAndSend("/topic/chatroom-message", Map.of(
+        messagingTemplate.convertAndSend(WebSocketDestination.TOPIC + "/chatroom-message", Map.of(
                 "message", response,
                 "action", action));
     }

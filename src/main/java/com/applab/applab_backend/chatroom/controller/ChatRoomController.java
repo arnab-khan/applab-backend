@@ -1,5 +1,7 @@
 package com.applab.applab_backend.chatroom.controller;
 
+import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,6 +30,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/chatroom")
@@ -38,6 +41,19 @@ public class ChatRoomController {
     @GetMapping("/global")
     public GlobalChatRoomResponse getGlobalChatRoom() {
         return new GlobalChatRoomResponse(chatRoomService.getGlobalChatRoomId());
+    }
+
+    @MessageMapping("/chatroom-typing")
+    public void publishTyping(Map<String, Object> request, SimpMessageHeaderAccessor headerAccessor) {
+        Map<String, Object> sessionAttributes = headerAccessor.getSessionAttributes();
+        String guestId = sessionAttributes != null ? (String) sessionAttributes.get("guestId") : null;
+        Long userId = sessionAttributes != null ? (Long) sessionAttributes.get("userId") : null;
+
+        if (userId == null && guestId == null && request.get("guestId") instanceof String requestGuestId) {
+            guestId = requestGuestId;
+        }
+
+        chatRoomService.publishChatRoomTyping(((Number) request.get("chatRoomId")).longValue(), guestId, userId);
     }
 
     @GetMapping("/{chatRoomId}/message/all")
