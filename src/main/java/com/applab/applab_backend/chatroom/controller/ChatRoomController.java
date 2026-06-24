@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.applab.applab_backend.chatroom.dto.ChatRoomMessageResponse;
+import com.applab.applab_backend.chatroom.dto.ChatRoomMessageViewerStateResponse;
 import com.applab.applab_backend.chatroom.dto.ChatRoomReactionPageResponse;
 import com.applab.applab_backend.chatroom.dto.ChatRoomRequest;
 import com.applab.applab_backend.chatroom.dto.CursorPageResponse;
@@ -69,6 +70,15 @@ public class ChatRoomController {
             HttpSession session) {
         return chatRoomService.getChatRoomMessages(chatRoomId, parentId, deleted, cursor, uptoId, direction, limit, guestId,
                 session);
+    }
+
+    @GetMapping("/{chatRoomId}/message/{messageId}/viewer-state")
+    public ChatRoomMessageViewerStateResponse getMessageViewerState(
+            @PathVariable Long chatRoomId,
+            @PathVariable Long messageId,
+            @CookieValue(required = false) String guestId,
+            HttpSession session) {
+        return chatRoomService.getChatRoomMessageViewerState(chatRoomId, messageId, guestId, session);
     }
 
     @PostMapping("/{chatRoomId}/message/add")

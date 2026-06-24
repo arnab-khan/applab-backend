@@ -10,7 +10,10 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import com.applab.applab_backend.auth.service.GuestSessionService;
+import com.applab.applab_backend.chatroom.dto.ChatRoomMessageReactionWebSocketResponse;
 import com.applab.applab_backend.chatroom.dto.ChatRoomMessageResponse;
+import com.applab.applab_backend.chatroom.dto.ChatRoomMessageSharedResponse;
+import com.applab.applab_backend.chatroom.dto.ChatRoomMessageViewerStateResponse;
 import com.applab.applab_backend.chatroom.dto.ChatRoomReactionPageResponse;
 import com.applab.applab_backend.chatroom.dto.ChatRoomRequest;
 import com.applab.applab_backend.chatroom.dto.CursorPageResponse;
@@ -19,6 +22,7 @@ import com.applab.applab_backend.chatroom.model.ChatRoomModel;
 import com.applab.applab_backend.chatroom.repository.ChatRoomRepository;
 import com.applab.applab_backend.common.constant.WebSocketDestination;
 import com.applab.applab_backend.message.dto.MessageRequest;
+import com.applab.applab_backend.message.dto.MessagePermissionResponse;
 import com.applab.applab_backend.message.dto.MessageWithAuthorAndReactionsResponse;
 import com.applab.applab_backend.message.dto.MessageWithAuthorResponse;
 import com.applab.applab_backend.message.dto.EditMessageRequest;
@@ -141,6 +145,28 @@ public class ChatRoomService {
         return response;
     }
 
+    public ChatRoomMessageViewerStateResponse getChatRoomMessageViewerState(Long chatRoomId, Long messageId,
+            String guestId,
+            HttpSession session) {
+        MessageModel message = findChatRoomMessageById(messageId);
+        ChatRoomModel chatRoomModel = findChatRoomById(chatRoomId);
+        MessagePermissionIdentity identity = getMessagePermissionIdentity(guestId, session);
+        if (!chatRoomId.equals(message.getContextId())) {
+            throwNoMessagePermission();
+        }
+        requireChatRoomPermission(MessageOperation.GET, chatRoomModel.getRoomType(), message, null, identity);
+
+        return new ChatRoomMessageViewerStateResponse(
+                messageId,
+                new MessagePermissionResponse(
+                        hasChatRoomPermission(MessageOperation.EDIT, chatRoomModel.getRoomType(), message, null,
+                                identity),
+                        hasChatRoomPermission(MessageOperation.DELETE, chatRoomModel.getRoomType(), message, null,
+                                identity)),
+                messageReactionService.getMessageResponseWithAuthorAndReactions(message, ContextType.CHAT,
+                        identity.userId(), identity.guestSessionId()).getMyReaction());
+    }
+
     public ChatRoomMessageResponse editChatRoomMessage(Long chatRoomId, EditMessageRequest message, String guestId,
             HttpSession session) {
         MessageModel savedMessage = messageService.findMessageById(message.getId());
@@ -223,11 +249,7 @@ public class ChatRoomService {
             default -> throw new RuntimeException("Invalid reaction operation");
         };
 
-        ChatRoomMessageResponse response = toChatRoomMessageResponse(chatRoomId, chatRoomModel.getRoomType(),
-                messageReactionService.getMessageResponseWithAuthorAndReactions(message, ContextType.CHAT,
-                        identity.userId(), identity.guestSessionId()),
-                getQuotedMessage(message), identity);
-        publishChatRoomMessageToWebSocket(response, operation);
+        publishChatRoomReactionToWebSocket(chatRoomId, messageId, operation);
 
         return updatedReaction;
     }
@@ -243,7 +265,8 @@ public class ChatRoomService {
         requireChatRoomPermission(MessageOperation.GET, chatRoomModel.getRoomType(), message, null, identity);
 
         int normalizedLimit = Math.min(Math.max(limit, 1), 100);
-        List<ReactionModel> reactions = reactionService.getReactionsByContext(messageId, ContextType.CHAT, emoji, cursor,
+        List<ReactionModel> reactions = reactionService.getReactionsByContext(messageId, ContextType.CHAT, emoji,
+                cursor,
                 normalizedLimit);
         boolean hasNext = reactions.size() > normalizedLimit;
         List<ReactionModel> pageReactions = hasNext ? reactions.subList(0, normalizedLimit) : reactions;
@@ -376,8 +399,22 @@ public class ChatRoomService {
     }
 
     private void publishChatRoomMessageToWebSocket(ChatRoomMessageResponse response, MessageOperation action) {
+        ChatRoomMessageSharedResponse websocketResponse = new ChatRoomMessageSharedResponse(
+                response.getChatRoomId(),
+                response.getMessage(),
+                response.getAuthor(),
+                response.getQuotedMessage());
+
         messagingTemplate.convertAndSend(WebSocketDestination.TOPIC + "/chatroom-message", Map.of(
-                "message", response,
+                "message", websocketResponse,
+                "action", action));
+    }
+
+    private void publishChatRoomReactionToWebSocket(Long chatRoomId, Long messageId, MessageOperation action) {
+        messagingTemplate.convertAndSend(WebSocketDestination.TOPIC + "/chatroom-message", Map.of(
+                "message", new ChatRoomMessageReactionWebSocketResponse(chatRoomId, messageId,
+                        reactionService.getReactionCountsByContextIds(List.of(messageId), ContextType.CHAT)
+                                .getOrDefault(messageId, List.of())),
                 "action", action));
     }
     // ========== Response and publishing: end ==========
