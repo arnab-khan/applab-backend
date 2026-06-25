@@ -53,6 +53,9 @@ public class SecurityConfig {
                         // Allow chatroom endpoints without any authentication
                         .requestMatchers("/chatroom/**").permitAll()
 
+                        // Allow telemetry endpoints without any authentication
+                        .requestMatchers("/telemetry/**").permitAll()
+
                         // Allow users with ROLE_USER or ROLE_ADMIN to access '/auth/me' endpoint
                         .requestMatchers("/auth/me").hasAnyRole("USER", "ADMIN")
 
