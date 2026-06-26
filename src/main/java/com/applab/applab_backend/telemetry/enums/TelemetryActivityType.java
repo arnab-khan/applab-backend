@@ -4,5 +4,6 @@ public enum TelemetryActivityType {
     CLICK,
     API_CALL,
     ROUTER_CHANGE,
-    ERROR
+    ERROR,
+    WEBSOCKET_ERROR
 }
