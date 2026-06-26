@@ -1,6 +1,7 @@
-package com.applab.applab_backend.todo.model;
+package com.applab.applab_backend.auth.model;
 
 import java.time.Instant;
+
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -10,7 +11,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.persistence.Index;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -19,22 +19,14 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "todos", indexes = {
-        @Index(name = "idx_todos_user_completed_updated", columnList = "user_id, completed, updated_at"),
-        @Index(name = "idx_todos_user_completed_created", columnList = "user_id, completed, created_at")
-})
-public class TodoModel {
-
+@Table(name = "guest_sessions")
+public class GuestSessionModel {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String title;
-    private String description;
-    private long userId;
-
-    @Column(nullable = false)
-    private boolean completed = false;
+    @Column(nullable = false, unique = true)
+    private String guestId;
 
     @CreationTimestamp
     @Column(updatable = false, nullable = false)
@@ -43,5 +35,4 @@ public class TodoModel {
     @UpdateTimestamp
     @Column(nullable = false)
     private Instant updatedAt;
-
 }

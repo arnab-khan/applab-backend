@@ -41,8 +41,20 @@ public class SecurityConfig {
                         // Allow public endpoints containing '/public/' without any authentication
                         .requestMatchers(request -> request.getRequestURI().contains("/public/")).permitAll()
 
+                        // Allow guest endpoints without any authentication
+                        .requestMatchers("/guest/**").permitAll()
+
                         // Allow authentication startpoint without any authentication
                         .requestMatchers("/auth/**").permitAll()
+
+                        // Allow WebSocket handshake without any authentication
+                        .requestMatchers("/ws", "/ws/**").permitAll()
+
+                        // Allow chatroom endpoints without any authentication
+                        .requestMatchers("/chatroom/**").permitAll()
+
+                        // Allow telemetry endpoints without any authentication
+                        .requestMatchers("/telemetry/**").permitAll()
 
                         // Allow users with ROLE_USER or ROLE_ADMIN to access '/auth/me' endpoint
                         .requestMatchers("/auth/me").hasAnyRole("USER", "ADMIN")
