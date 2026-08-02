@@ -1,45 +1,80 @@
-# Spring Boot Application
+# Applab Backend
+
+Backend service for Applab, a full-stack web application built with Angular and Spring Boot.
 
 ## Overview
-This repository contains an Spring Boot application developed and maintained by **Arnab Khan**.
 
-The source code is publicly visible for **review and evaluation purposes only**.  
-This project is **NOT open source**.
+This repository contains the Spring Boot backend for Applab. It provides REST APIs, authentication, session management, profile features, file upload support, and real-time chat communication for the frontend application.
 
----
+The backend supports secure cookie-based session authentication, public user profiles, unique username validation, profile image upload, and real-time global chat features including live messaging, typing indicators, message editing, message deletion, reactions, quoted replies, and live synchronization.
 
-## 🚫 Usage Restrictions
-**Unauthorized use of this code is strictly prohibited.**
+## Tech Stack
 
-You are **NOT allowed** to:
-- Use this code in any commercial or production application
-- Copy, reuse, or replicate any part of the codebase
-- Modify, distribute, sublicense, or sell the code
-- Include this code in your own projects (public or private)
+- Java 21
+- Spring Boot
+- Spring Security
+- Spring Data JPA
+- MySQL
+- Redis-backed session management
+- STOMP WebSocket
+- Maven
 
-**Explicit written permission from the author is required** for any of the above actions.
+## Related Links
 
----
+- Live project: https://applab.arnabkhan.in/chat/global
+- Demo video: https://arnab-khan.github.io/images/projects/app-lab.mp4
+- Frontend source code: https://github.com/arnab-khan/applab-frontend
+- Backend source code: https://github.com/arnab-khan/applab-backend
 
-## ✅ Allowed Usage
-You MAY:
-- View the code for learning, review, and evaluation purposes
-- Analyze implementation patterns and structure
-- Reference concepts **without copying code**
+## Features
 
----
+- Cookie-based session authentication
+- User registration and login APIs
+- Profile management
+- Unique username validation
+- Profile image upload
+- Public user profile support
+- RESTful API design
+- Redis-backed session storage
+- Real-time global chat using STOMP WebSocket
+- Live messaging and synchronization
+- Typing indicators
+- Message editing and deletion
+- Message reactions
+- Quoted replies
 
-## 🛡 Intellectual Property
-All source code, architecture, logic, and design patterns in this repository are the  
-**exclusive intellectual property of Arnab Khan**.
+## Deployment
 
-Any unauthorized use, reproduction, or distribution may result in legal action.
+The application is designed to run as the backend service for the Applab frontend. The full project is deployed on a Linux VPS using Nginx and PM2, with automated CI/CD pipelines handled through GitHub Actions.
 
----
+## Development Setup
 
-## ⚙️ Development Setup
-> This project is not intended to be used as a template or starter application.
+### Prerequisites
+
+- Java 21
+- MySQL
+- Redis
+
+### Database and Redis
+
+Create a MySQL database for the application and make sure Redis is running locally or on a configured server.
+
+Update the application configuration with your local MySQL and Redis connection details before starting the backend.
+
+### Run the Application
 
 ```bash
-mvn clean install
-mvn spring-boot:run
+./mvnw clean install
+./mvnw spring-boot:run
+```
+
+On Windows:
+
+```bash
+mvnw.cmd clean install
+mvnw.cmd spring-boot:run
+```
+
+## License
+
+This project is not open source. See [LICENSE](LICENSE) for usage restrictions.
