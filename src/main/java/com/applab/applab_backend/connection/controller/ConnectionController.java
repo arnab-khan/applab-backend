@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.applab.applab_backend.connection.dto.ConnectionRequest;
+import com.applab.applab_backend.connection.dto.ConnectionResponse;
 import com.applab.applab_backend.connection.dto.ConnectionStatusUpdateRequest;
 import com.applab.applab_backend.connection.enums.ConnectionStatus;
 import com.applab.applab_backend.connection.model.ConnectionModel;
@@ -32,7 +33,7 @@ public class ConnectionController {
     }
 
     @GetMapping("/all")
-    public Page<ConnectionModel> getAll(
+    public Page<ConnectionResponse> getAll(
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) ConnectionStatus status,
             Pageable pageable,
@@ -53,7 +54,7 @@ public class ConnectionController {
     }
 
     @GetMapping("/status")
-    public ResponseEntity<ConnectionStatus> getConnectionStatus(@RequestParam Long userId, HttpSession session) {
+    public ResponseEntity<ConnectionModel> getConnectionStatus(@RequestParam Long userId, HttpSession session) {
         return connectionService.getConnectionStatus(userId, session)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.noContent().build());

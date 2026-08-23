@@ -1,12 +1,19 @@
 package com.applab.applab_backend.connection.service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import com.applab.applab_backend.auth.model.UserModel;
+import com.applab.applab_backend.auth.repository.UserRepository;
+import com.applab.applab_backend.connection.dto.ConnectionResponse;
+import com.applab.applab_backend.connection.dto.ConnectionUserResponse;
 import com.applab.applab_backend.connection.enums.ConnectionStatus;
 import com.applab.applab_backend.connection.model.ConnectionModel;
 import com.applab.applab_backend.connection.repository.ConnectionRepository;
@@ -17,9 +24,11 @@ import jakarta.servlet.http.HttpSession;
 public class ConnectionService {
 
     private final ConnectionRepository connectionRepository;
+    private final UserRepository userRepository;
 
-    public ConnectionService(ConnectionRepository connectionRepository) {
+    public ConnectionService(ConnectionRepository connectionRepository, UserRepository userRepository) {
         this.connectionRepository = connectionRepository;
+        this.userRepository = userRepository;
     }
 
     public ConnectionModel createConnection(Long receiverUserId, HttpSession session) {
@@ -39,10 +48,9 @@ public class ConnectionService {
         return connectionRepository.save(connection);
     }
 
-    public Optional<ConnectionStatus> getConnectionStatus(Long userId, HttpSession session) {
+    public Optional<ConnectionModel> getConnectionStatus(Long userId, HttpSession session) {
         Long currentUserId = (Long) session.getAttribute("userId");
-        return connectionRepository.findConnectionBetweenUsers(currentUserId, userId)
-                .map(connection -> connection.getStatus());
+        return connectionRepository.findConnectionBetweenUsers(currentUserId, userId);
     }
 
     public ConnectionModel updateConnectionStatus(Long id, ConnectionStatus status, HttpSession session) {
@@ -66,10 +74,13 @@ public class ConnectionService {
         return connectionRepository.save(connection);
     }
 
-    public Page<ConnectionModel> getConnections(Long userId, ConnectionStatus status, String keyword, String sortBy,
+    public Page<ConnectionResponse> getConnections(Long userId, ConnectionStatus status, String keyword, String sortBy,
             String sortDirection, Pageable pageable, HttpSession session) {
+        Long currentUserId = (Long) session.getAttribute("userId");
         if (userId == null) {
-            userId = (Long) session.getAttribute("userId");
+            userId = currentUserId;
+        } else if (!userId.equals(currentUserId)) {
+            status = ConnectionStatus.ACCEPTED;
         }
 
         List<String> allowedSorts = List.of("updatedAt", "name");
@@ -86,6 +97,29 @@ public class ConnectionService {
                             ". Allowed directions: " + allowedSortDirections);
         }
 
-        return connectionRepository.searchConnections(userId, status, keyword, sortBy, sortDirection, pageable);
+        Long requestedUserId = userId;
+        Page<ConnectionModel> connections = connectionRepository.searchConnections(
+                requestedUserId, status, keyword, sortBy, sortDirection, pageable);
+
+        Map<Long, UserModel> usersById = userRepository.findAllById(connections.getContent().stream()
+                .map(connection -> connection.getSenderUserId().equals(requestedUserId)
+                        ? connection.getReceiverUserId()
+                        : connection.getSenderUserId())
+                .distinct()
+                .toList())
+                .stream()
+                .collect(Collectors.toMap(UserModel::getId, Function.identity()));
+
+        return connections.map(connection -> {
+            Long otherUserId = connection.getSenderUserId().equals(requestedUserId)
+                    ? connection.getReceiverUserId()
+                    : connection.getSenderUserId();
+            UserModel user = usersById.get(otherUserId);
+            ConnectionUserResponse userResponse = user == null
+                    ? new ConnectionUserResponse(otherUserId, null, null, null, null)
+                    : new ConnectionUserResponse(user.getId(), user.getName(), user.getUsername(),
+                            user.getProfileImageUrl(), user.getCompressedProfileImageUrl());
+            return new ConnectionResponse(connection, userResponse);
+        });
     }
 }
