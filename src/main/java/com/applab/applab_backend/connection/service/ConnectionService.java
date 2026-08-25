@@ -59,12 +59,25 @@ public class ConnectionService {
                 .orElseThrow(() -> new RuntimeException("Connection not found"));
 
         if (connection.getSenderUserId().equals(userId)) {
-            if (status != ConnectionStatus.CANCELED) {
-                throw new RuntimeException("Sender can only cancel connection request");
+            boolean canCancel = connection.getStatus() == ConnectionStatus.PENDING
+                    && status == ConnectionStatus.CANCELED;
+            boolean canResend = (connection.getStatus() == ConnectionStatus.REJECTED
+                    || connection.getStatus() == ConnectionStatus.CANCELED)
+                    && status == ConnectionStatus.PENDING;
+            if (!canCancel && !canResend) {
+                throw new RuntimeException("Sender can cancel pending requests or retry rejected requests");
             }
         } else if (connection.getReceiverUserId().equals(userId)) {
-            if (status != ConnectionStatus.ACCEPTED && status != ConnectionStatus.REJECTED) {
-                throw new RuntimeException("Receiver can only accept or reject connection request");
+            boolean canAccept = status == ConnectionStatus.ACCEPTED
+                    && (connection.getStatus() == ConnectionStatus.PENDING
+                            || connection.getStatus() == ConnectionStatus.REJECTED);
+            boolean canReject = status == ConnectionStatus.REJECTED
+                    && connection.getStatus() == ConnectionStatus.PENDING;
+            boolean canResend = status == ConnectionStatus.PENDING
+                    && connection.getStatus() == ConnectionStatus.CANCELED;
+            if (!canAccept && !canReject && !canResend) {
+                throw new RuntimeException(
+                        "Receiver can accept pending or rejected requests, reject pending requests, or retry canceled requests");
             }
         } else {
             throw new RuntimeException("Unauthorized, you can only update your own connections");
