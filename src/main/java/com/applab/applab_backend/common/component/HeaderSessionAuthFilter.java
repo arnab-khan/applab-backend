@@ -22,6 +22,7 @@ public class HeaderSessionAuthFilter extends OncePerRequestFilter {
         System.out.println("URI=" + request.getRequestURI() + ", servletPath=" + request.getServletPath());
         return path.startsWith("/auth/") || path.contains("/public/") || path.contains("/guest/")
                 || path.contains("/chatroom/") || path.startsWith("/telemetry/")
+                || (path.equals("/connection/all") && request.getMethod().equals("GET"))
                 || path.equals("/ws") || path.startsWith("/ws/");
     }
 
