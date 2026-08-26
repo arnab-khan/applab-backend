@@ -56,6 +56,9 @@ public class SecurityConfig {
                         // Allow telemetry endpoints without any authentication
                         .requestMatchers("/telemetry/**").permitAll()
 
+                        // Allow public access to accepted connection lists
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/connection/all").permitAll()
+
                         // Allow users with ROLE_USER or ROLE_ADMIN to access '/auth/me' endpoint
                         .requestMatchers("/auth/me").hasAnyRole("USER", "ADMIN")
 

@@ -59,13 +59,14 @@ public class ConnectionService {
                 .orElseThrow(() -> new RuntimeException("Connection not found"));
 
         if (connection.getSenderUserId().equals(userId)) {
-            boolean canCancel = connection.getStatus() == ConnectionStatus.PENDING
+            boolean canCancel = (connection.getStatus() == ConnectionStatus.PENDING
+                    || connection.getStatus() == ConnectionStatus.ACCEPTED)
                     && status == ConnectionStatus.CANCELED;
             boolean canResend = (connection.getStatus() == ConnectionStatus.REJECTED
                     || connection.getStatus() == ConnectionStatus.CANCELED)
                     && status == ConnectionStatus.PENDING;
             if (!canCancel && !canResend) {
-                throw new RuntimeException("Sender can cancel pending requests or retry rejected requests");
+                throw new RuntimeException("Sender can cancel pending or accepted connections, or retry requests");
             }
         } else if (connection.getReceiverUserId().equals(userId)) {
             boolean canAccept = status == ConnectionStatus.ACCEPTED
@@ -75,12 +76,22 @@ public class ConnectionService {
                     && connection.getStatus() == ConnectionStatus.PENDING;
             boolean canResend = status == ConnectionStatus.PENDING
                     && connection.getStatus() == ConnectionStatus.CANCELED;
-            if (!canAccept && !canReject && !canResend) {
+            boolean canCancel = status == ConnectionStatus.CANCELED
+                    && connection.getStatus() == ConnectionStatus.ACCEPTED;
+            if (!canAccept && !canReject && !canResend && !canCancel) {
                 throw new RuntimeException(
-                        "Receiver can accept pending or rejected requests, reject pending requests, or retry canceled requests");
+                        "Receiver can accept, reject, retry canceled requests, or cancel accepted connections");
             }
         } else {
             throw new RuntimeException("Unauthorized, you can only update your own connections");
+        }
+
+        if (connection.getStatus() == ConnectionStatus.CANCELED && status == ConnectionStatus.PENDING) {
+            Long otherUserId = connection.getSenderUserId().equals(userId)
+                    ? connection.getReceiverUserId()
+                    : connection.getSenderUserId();
+            connection.setSenderUserId(userId);
+            connection.setReceiverUserId(otherUserId);
         }
 
         connection.setStatus(status);
@@ -91,8 +102,14 @@ public class ConnectionService {
             String sortDirection, Pageable pageable, HttpSession session) {
         Long currentUserId = (Long) session.getAttribute("userId");
         if (userId == null) {
+            if (currentUserId == null) {
+                throw new IllegalArgumentException("userId is required when not logged in");
+            }
             userId = currentUserId;
         } else if (!userId.equals(currentUserId)) {
+            if (status != null && status != ConnectionStatus.ACCEPTED) {
+                throw new RuntimeException("You can only view accepted connections of another user");
+            }
             status = ConnectionStatus.ACCEPTED;
         }
 
