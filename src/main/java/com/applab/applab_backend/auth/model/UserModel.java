@@ -48,6 +48,10 @@ public class UserModel {
     @JsonView(SerializationJsonViews.MyClass.class) // Visible in public view
     private String username;
 
+    @Column(unique = true)
+    @JsonView(SerializationJsonViews.MyClass.class) // Visible in public view
+    private String email;
+
     @Column(nullable = false)
     @JsonView(SerializationJsonViews.MyChild.class) // Visible only in internal view
     private String password;

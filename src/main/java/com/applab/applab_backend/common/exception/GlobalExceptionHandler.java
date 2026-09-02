@@ -11,6 +11,12 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    @ExceptionHandler(ApiException.class)
+    public ResponseEntity<Map<String, String>> handleApiException(ApiException ex) {
+        return ResponseEntity.status(ex.getStatusCode())
+                .body(Map.of("code", ex.getCode(), "message", ex.getReason()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<String> handleValidationErrors(MethodArgumentNotValidException exception) {
         String errorMessage = exception.getBindingResult().getFieldError().getDefaultMessage();

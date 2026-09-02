@@ -1,10 +1,15 @@
 package com.applab.applab_backend.auth.service;
 
+import java.security.SecureRandom;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -19,6 +24,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.applab.applab_backend.auth.dto.LoginRequest;
+import com.applab.applab_backend.auth.dto.PasswordVerificationRequest;
 import com.applab.applab_backend.auth.dto.ProfileCredentialsUpdateRequest;
 import com.applab.applab_backend.auth.dto.ProfileBasicsUpdateRequest;
 import com.applab.applab_backend.auth.dto.SignupRequest;
@@ -27,8 +33,15 @@ import com.applab.applab_backend.auth.dto.UserProfileImageResponse;
 import com.applab.applab_backend.auth.model.UserModel;
 import com.applab.applab_backend.auth.repository.UserRepository;
 import com.applab.applab_backend.auth.enums.ProfileImageType;
+import com.applab.applab_backend.auth.enums.PasswordVerificationPurpose;
+import com.applab.applab_backend.common.exception.ApiException;
+import com.applab.applab_backend.email.dto.EmailOtpRequest;
+import com.applab.applab_backend.email.dto.EmailOtpResponse;
+import com.applab.applab_backend.email.dto.EmailOtpVerificationRequest;
+import com.applab.applab_backend.email.service.EmailService;
 import com.applab.applab_backend.storage.model.FileEntityModel;
 import com.applab.applab_backend.storage.service.StorageService;
+import com.resend.core.exception.ResendException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -40,9 +53,19 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class UserService {
 
+    private static final Duration EMAIL_OTP_EXPIRY = Duration.ofMinutes(10);
+    private static final Duration EMAIL_CHANGE_EXPIRY = Duration.ofHours(1);
+    private static final Duration PASSWORD_VERIFICATION_EXPIRY = Duration.ofHours(1);
+    private static final long EMAIL_OTP_RESEND_COOLDOWN_MILLIS = Duration.ofMinutes(1).toMillis();
+    private static final int EMAIL_OTP_MAX_RESENDS = 3;
+    private static final int EMAIL_OTP_DIGITS = 6;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
     private final PasswordEncoder passwordEncoder;
     private final UserRepository userRepository;
     private final StorageService storageService;
+    private final StringRedisTemplate stringRedisTemplate;
+    private final EmailService emailService;
 
     // Hashes the password and then saves the user in the database
     public UserModel createUser(SignupRequest userDetails, HttpServletRequest request) {
@@ -98,6 +121,160 @@ public class UserService {
 
     public boolean isUsernameExist(String username) {
         return userRepository.existsByUsername(username);
+    }
+
+    public void verifyPassword(PasswordVerificationRequest passwordDetails,
+            HttpServletRequest request) {
+        UserModel user = getUserBySession(request);
+        validateCurrentPassword(passwordDetails.getCurrentPassword(), user);
+
+        String passwordVerificationRedisKey = passwordVerificationKey(
+                request.getSession(false).getId(), passwordDetails.getPurpose());
+        stringRedisTemplate.delete(passwordVerificationRedisKey);
+        stringRedisTemplate.opsForHash().put(passwordVerificationRedisKey, "verified", "true");
+        stringRedisTemplate.expire(passwordVerificationRedisKey, PASSWORD_VERIFICATION_EXPIRY);
+    }
+
+    public EmailOtpResponse sendEmailOtp(EmailOtpRequest emailDetails, HttpServletRequest request)
+            throws ResendException {
+        UserModel user = getUserBySession(request);
+        String sessionId = request.getSession(false).getId();
+        String passwordVerificationRedisKey = passwordVerificationKey(
+                sessionId, PasswordVerificationPurpose.CHANGE_EMAIL);
+        String email = emailDetails.getEmail().trim().toLowerCase();
+        if (!Boolean.TRUE.equals(stringRedisTemplate.hasKey(passwordVerificationRedisKey))) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "PASSWORD_VERIFICATION_REQUIRED",
+                    "Password verification is required before changing email");
+        }
+
+        if (user.getEmail() != null && email.equalsIgnoreCase(user.getEmail())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "New email must be different from your current email");
+        }
+
+        if (userRepository.existsByEmailIgnoreCase(email)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This email address is already linked to another account");
+        }
+
+        Object storedEmailChangeId = stringRedisTemplate.opsForHash()
+                .get(passwordVerificationRedisKey, "emailChangeId");
+        String emailChangeId = storedEmailChangeId == null
+                ? UUID.randomUUID().toString()
+                : storedEmailChangeId.toString();
+        String emailChangeRedisKey = emailChangeKey(emailChangeId);
+        int resendCount = 0;
+        if (storedEmailChangeId != null) {
+            validateEmailChangeOwner(emailChangeRedisKey, user.getId(), sessionId);
+            String storedEmail = stringRedisTemplate.opsForHash().get(emailChangeRedisKey, "email").toString();
+            if (!email.equals(storedEmail)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Complete the existing email change before using another email");
+            }
+            long lastSentAt = Long.parseLong(
+                    stringRedisTemplate.opsForHash().get(emailChangeRedisKey, "lastSentAt").toString());
+            if (System.currentTimeMillis() - lastSentAt < EMAIL_OTP_RESEND_COOLDOWN_MILLIS) {
+                throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "EMAIL_OTP_COOLDOWN",
+                        "Please wait before requesting another OTP");
+            }
+            resendCount = Integer.parseInt(
+                    stringRedisTemplate.opsForHash().get(emailChangeRedisKey, "resendCount").toString());
+            if (resendCount >= EMAIL_OTP_MAX_RESENDS) {
+                throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "EMAIL_OTP_RESEND_LIMIT_REACHED",
+                        "OTP resend limit reached");
+            }
+        }
+
+        String otp = generateEmailOtp();
+        emailService.sendEmail(
+                email,
+                "Verify your AppLab email",
+                "<p>Your AppLab verification code is:</p><h1>" + otp
+                        + "</h1><p>This code expires in 10 minutes.</p>");
+
+        long sentAt = System.currentTimeMillis();
+        long otpExpiresAt = sentAt + EMAIL_OTP_EXPIRY.toMillis();
+        int resendsUsed = storedEmailChangeId == null ? 0 : resendCount + 1;
+        stringRedisTemplate.opsForHash().put(emailChangeRedisKey, "userId", user.getId().toString());
+        stringRedisTemplate.opsForHash().put(emailChangeRedisKey, "sessionId", sessionId);
+        stringRedisTemplate.opsForHash().put(emailChangeRedisKey, "email", email);
+        stringRedisTemplate.opsForHash().put(emailChangeRedisKey, "otp", passwordEncoder.encode(otp));
+        stringRedisTemplate.opsForHash().put(emailChangeRedisKey, "otpExpiresAt", Long.toString(otpExpiresAt));
+        stringRedisTemplate.opsForHash().put(emailChangeRedisKey, "lastSentAt", Long.toString(sentAt));
+        stringRedisTemplate.opsForHash().put(emailChangeRedisKey, "resendCount",
+                Integer.toString(resendsUsed));
+        stringRedisTemplate.expire(emailChangeRedisKey, EMAIL_CHANGE_EXPIRY);
+        stringRedisTemplate.opsForHash().put(passwordVerificationRedisKey, "emailChangeId", emailChangeId);
+        return new EmailOtpResponse(
+                "OTP sent successfully",
+                emailChangeId,
+                email,
+                Instant.ofEpochMilli(sentAt).plus(EMAIL_OTP_EXPIRY),
+                EMAIL_OTP_EXPIRY.toSeconds(),
+                EMAIL_OTP_DIGITS,
+                Duration.ofMillis(EMAIL_OTP_RESEND_COOLDOWN_MILLIS).toSeconds(),
+                Instant.ofEpochMilli(sentAt + EMAIL_OTP_RESEND_COOLDOWN_MILLIS),
+                EMAIL_OTP_MAX_RESENDS - resendsUsed);
+    }
+
+    @Transactional
+    public UserModel verifyEmailOtp(EmailOtpVerificationRequest verificationDetails,
+            HttpServletRequest request) {
+        UserModel user = getUserBySession(request);
+        String emailChangeRedisKey = emailChangeKey(verificationDetails.getEmailChangeId());
+        validateEmailChangeOwner(emailChangeRedisKey, user.getId(), request.getSession(false).getId());
+        Object storedEmail = stringRedisTemplate.opsForHash().get(emailChangeRedisKey, "email");
+        Object storedOtp = stringRedisTemplate.opsForHash().get(emailChangeRedisKey, "otp");
+        Object storedOtpExpiresAt = stringRedisTemplate.opsForHash().get(emailChangeRedisKey, "otpExpiresAt");
+
+        if (storedEmail == null || storedOtp == null || storedOtpExpiresAt == null
+                || System.currentTimeMillis() >= Long.parseLong(storedOtpExpiresAt.toString())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "EMAIL_OTP_EXPIRED",
+                    "OTP is invalid or expired");
+        }
+        if (!passwordEncoder.matches(verificationDetails.getOtp(), storedOtp.toString())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "EMAIL_OTP_INCORRECT", "OTP is incorrect");
+        }
+        String email = storedEmail.toString();
+        if (userRepository.existsByEmailIgnoreCase(email)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email is already in use");
+        }
+
+        user.setEmail(email);
+        UserModel savedUser = userRepository.save(user);
+        stringRedisTemplate.delete(emailChangeRedisKey);
+        stringRedisTemplate.delete(passwordVerificationKey(
+                request.getSession(false).getId(), PasswordVerificationPurpose.CHANGE_EMAIL));
+        return savedUser;
+    }
+
+    private void validateEmailChangeOwner(String emailChangeRedisKey, Long userId, String sessionId) {
+        Object storedUserId = stringRedisTemplate.opsForHash().get(emailChangeRedisKey, "userId");
+        Object storedSessionId = stringRedisTemplate.opsForHash().get(emailChangeRedisKey, "sessionId");
+        if (storedUserId == null || storedSessionId == null) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "EMAIL_CHANGE_INVALID_OR_EXPIRED",
+                    "Email change request is invalid or expired");
+        }
+        if (!userId.toString().equals(storedUserId.toString())
+                || !sessionId.equals(storedSessionId.toString())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "EMAIL_CHANGE_SESSION_MISMATCH",
+                    "Email change request does not belong to this session");
+        }
+    }
+
+    private String emailChangeKey(String emailChangeId) {
+        return "email-change:" + emailChangeId;
+    }
+
+    private String generateEmailOtp() {
+        StringBuilder otp = new StringBuilder(EMAIL_OTP_DIGITS);
+        for (int index = 0; index < EMAIL_OTP_DIGITS; index++) {
+            otp.append(SECURE_RANDOM.nextInt(10));
+        }
+        return otp.toString();
+    }
+
+    private String passwordVerificationKey(String sessionId, PasswordVerificationPurpose purpose) {
+        return "password-verification:" + sessionId + ":" + purpose.name();
     }
 
     public Page<UserListItemResponse> getAll(String keyword, Pageable pageable) {
