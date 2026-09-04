@@ -21,9 +21,9 @@ public class EmailController {
         this.emailService = emailService;
     }
 
-    @PostMapping("/send")
-    public Map<String, String> sendEmail(@RequestBody EmailRequest request) throws ResendException {
-        String emailId = emailService.sendEmail(request.getTo(), request.getSubject(), request.getHtml());
-        return Map.of("id", emailId);
-    }
+    // @PostMapping("/send")
+    // public Map<String, String> sendEmail(@RequestBody EmailRequest request) throws ResendException {
+    //     String emailId = emailService.sendEmail(request.getTo(), request.getSubject(), request.getHtml());
+    //     return Map.of("id", emailId);
+    // }
 }
