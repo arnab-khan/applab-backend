@@ -4,7 +4,7 @@ import java.time.Instant;
 
 public record EmailOtpResponse(
         String message,
-        String emailChangeId,
+        String requestId,
         String sentTo,
         Instant expiresAt,
         long expiresInSeconds,

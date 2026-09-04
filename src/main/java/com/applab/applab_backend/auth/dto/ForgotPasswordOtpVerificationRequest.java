@@ -1,12 +1,11 @@
-package com.applab.applab_backend.email.dto;
+package com.applab.applab_backend.auth.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
 @Data
-public class EmailOtpVerificationRequest {
-
+public class ForgotPasswordOtpVerificationRequest {
     @NotBlank(message = "Request ID is required")
     private String requestId;
 
