@@ -56,6 +56,9 @@ public class SecurityConfig {
                         // Allow telemetry endpoints without any authentication
                         .requestMatchers("/telemetry/**").permitAll()
 
+                        // Allow email endpoints without any authentication
+                        .requestMatchers("/email/**").permitAll()
+
                         // Allow public access to accepted connection lists
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/connection/all").permitAll()
 

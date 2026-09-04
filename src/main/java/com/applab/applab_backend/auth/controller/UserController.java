@@ -2,6 +2,7 @@ package com.applab.applab_backend.auth.controller;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -11,12 +12,17 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 import com.applab.applab_backend.auth.dto.ProfileCredentialsUpdateRequest;
 import com.applab.applab_backend.auth.dto.ProfileBasicsUpdateRequest;
+import com.applab.applab_backend.auth.dto.PasswordVerificationRequest;
 import com.applab.applab_backend.auth.dto.UserListItemResponse;
 import com.applab.applab_backend.auth.model.UserModel;
 import com.applab.applab_backend.auth.service.UserService;
 import com.applab.applab_backend.auth.dto.UserProfileImageResponse;
 import com.applab.applab_backend.common.views.SerializationJsonViews;
+import com.applab.applab_backend.email.dto.EmailOtpRequest;
+import com.applab.applab_backend.email.dto.EmailOtpResponse;
+import com.applab.applab_backend.email.dto.EmailOtpVerificationRequest;
 import com.fasterxml.jackson.annotation.JsonView;
+import com.resend.core.exception.ResendException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -51,6 +57,27 @@ public class UserController {
     public UserModel updateCredentials(@Valid @RequestBody ProfileCredentialsUpdateRequest userDetails,
             HttpServletRequest request) {
         return userService.updateCredentials(userDetails, request);
+    }
+
+    @PostMapping("/verify-password")
+    public Map<String, String> verifyPassword(
+            @Valid @RequestBody PasswordVerificationRequest passwordDetails,
+            HttpServletRequest request) {
+        userService.verifyPassword(passwordDetails, request);
+        return Map.of("message", "Password verified successfully");
+    }
+
+    @PostMapping("/email/send-otp")
+    public EmailOtpResponse sendEmailOtp(@Valid @RequestBody EmailOtpRequest emailDetails,
+            HttpServletRequest request) throws ResendException {
+        return userService.sendEmailOtp(emailDetails, request);
+    }
+
+    @PostMapping("/email/verify-otp")
+    @JsonView(SerializationJsonViews.MyClass.class)
+    public UserModel verifyEmailOtp(@Valid @RequestBody EmailOtpVerificationRequest verificationDetails,
+            HttpServletRequest request) {
+        return userService.verifyEmailOtp(verificationDetails, request);
     }
 
     // check if username is taken
