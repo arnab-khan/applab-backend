@@ -10,6 +10,8 @@ import com.applab.applab_backend.chatroom.model.ChatRoomModel;
 
 @Repository
 public interface ChatRoomRepository extends JpaRepository<ChatRoomModel, Long> {
+    Optional<ChatRoomModel> findByFirstUserIdAndSecondUserId(Long firstUserId, Long secondUserId);
+
     boolean existsByRoomType(RoomType roomType);
 
     Optional<ChatRoomModel> findByRoomType(RoomType roomType);

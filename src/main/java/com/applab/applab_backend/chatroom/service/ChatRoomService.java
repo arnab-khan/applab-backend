@@ -8,6 +8,10 @@ import java.util.stream.Collectors;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+import com.applab.applab_backend.auth.repository.UserRepository;
 
 import com.applab.applab_backend.auth.service.GuestSessionService;
 import com.applab.applab_backend.chatroom.dto.ChatRoomMessageReactionWebSocketResponse;
@@ -48,6 +52,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ChatRoomService {
     private final ChatRoomRepository chatRoomRepository;
+    private final UserRepository userRepository;
     private final MessageService messageService;
     private final MessageAuthorService messageAuthorService;
     private final MessageReactionService messageReactionService;
@@ -69,6 +74,41 @@ public class ChatRoomService {
         return chatRoomRepository.save(chatRoomModel);
     }
 
+    public Long getOrCreateDirectChat(Long recipientId, HttpSession session) {
+        Long userId = session == null ? null : (Long) session.getAttribute("userId");
+        if (userId == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Login required");
+        }
+        if (userId.equals(recipientId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Choose another user");
+        }
+        if (recipientId == null || !userRepository.existsById(recipientId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+        }
+        Long first = Math.min(userId, recipientId);
+        Long second = Math.max(userId, recipientId);
+        return chatRoomRepository.findByFirstUserIdAndSecondUserId(first, second)
+                .map(ChatRoomModel::getId).orElseGet(() -> {
+                    ChatRoomModel room = new ChatRoomModel();
+                    room.setName("Direct chat");
+                    room.setRoomType(RoomType.PRIVATE);
+                    room.setFirstUserId(first);
+                    room.setSecondUserId(second);
+                    try {
+                        return chatRoomRepository.saveAndFlush(room).getId();
+                    } catch (DataIntegrityViolationException exception) {
+                        return chatRoomRepository.findByFirstUserIdAndSecondUserId(first, second)
+                                .map(ChatRoomModel::getId).orElseThrow(() -> exception);
+                    }
+                });
+    }
+
+
+    private String roomDestination(Long chatRoomId, String event) {
+        return WebSocketDestination.TOPIC + (findChatRoomById(chatRoomId).getRoomType() == RoomType.PRIVATE
+                ? "/chatroom/" + chatRoomId + "/" + event : "/chatroom-" + event);
+    }
+
     public Long getGlobalChatRoomId() {
         if (globalChatRoomId != null) {
             return globalChatRoomId;
@@ -87,10 +127,8 @@ public class ChatRoomService {
             Boolean deleted, Long cursor, Long uptoId, MessageDirection direction, int limit, String guestId,
             HttpSession session) {
         ChatRoomModel chatRoom = findChatRoomById(chatRoomId);
-        requireChatRoomPermission(MessageOperation.GET, chatRoom.getRoomType(), null, null,
-                new MessagePermissionIdentity(null, null));
-
         MessagePermissionIdentity identity = getMessagePermissionIdentity(guestId, session);
+        requireChatRoomPermission(MessageOperation.GET, chatRoom, null, null, identity);
 
         // Keep page size between 1 and 100 so one request cannot load too many
         // messages.
@@ -108,7 +146,7 @@ public class ChatRoomService {
         Map<Long, MessageWithAuthorResponse> quotedMessagesById = getQuotedMessagesById(pageMessages);
 
         List<ChatRoomMessageResponse> items = messageResponses.stream()
-                .map(messageResponse -> toChatRoomMessageResponse(chatRoomId, chatRoom.getRoomType(), messageResponse,
+                .map(messageResponse -> toChatRoomMessageResponse(chatRoomId, chatRoom, messageResponse,
                         quotedMessagesById.get(messageResponse.getMessage().getQuotedMessageId()), identity))
                 .toList();
 
@@ -123,7 +161,9 @@ public class ChatRoomService {
             HttpSession session) {
         ChatRoomModel chatRoomModel = findChatRoomById(chatRoomId);
         MessagePermissionIdentity identity = getMessagePermissionIdentity(guestId, session);
-        requireChatRoomPermission(MessageOperation.ADD, chatRoomModel.getRoomType(), null, null, identity);
+        requireChatRoomPermission(MessageOperation.ADD, chatRoomModel, null, null, identity);
+        validateMessageReference(chatRoomId, chatRoom.getParentId());
+        validateMessageReference(chatRoomId, chatRoom.getQuotedMessageId());
 
         MessageRequest message = new MessageRequest();
         message.setParentId(chatRoom.getParentId());
@@ -137,7 +177,7 @@ public class ChatRoomService {
             message.setGuestSessionId(guestSessionService.getGuestSessionId(guestId));
         }
         MessageModel savedMessage = messageService.addMessage(message);
-        ChatRoomMessageResponse response = toChatRoomMessageResponse(chatRoomId, chatRoomModel.getRoomType(),
+        ChatRoomMessageResponse response = toChatRoomMessageResponse(chatRoomId, chatRoomModel,
                 messageReactionService.getMessageResponseWithAuthorAndReactions(savedMessage, ContextType.CHAT,
                         identity.userId(), identity.guestSessionId()),
                 getQuotedMessage(savedMessage), identity);
@@ -154,14 +194,14 @@ public class ChatRoomService {
         if (!chatRoomId.equals(message.getContextId())) {
             throwNoMessagePermission();
         }
-        requireChatRoomPermission(MessageOperation.GET, chatRoomModel.getRoomType(), message, null, identity);
+        requireChatRoomPermission(MessageOperation.GET, chatRoomModel, message, null, identity);
 
         return new ChatRoomMessageViewerStateResponse(
                 messageId,
                 new MessagePermissionResponse(
-                        hasChatRoomPermission(MessageOperation.EDIT, chatRoomModel.getRoomType(), message, null,
+                        hasChatRoomPermission(MessageOperation.EDIT, chatRoomModel, message, null,
                                 identity),
-                        hasChatRoomPermission(MessageOperation.DELETE, chatRoomModel.getRoomType(), message, null,
+                        hasChatRoomPermission(MessageOperation.DELETE, chatRoomModel, message, null,
                                 identity)),
                 messageReactionService.getMessageResponseWithAuthorAndReactions(message, ContextType.CHAT,
                         identity.userId(), identity.guestSessionId()).getMyReaction());
@@ -172,10 +212,11 @@ public class ChatRoomService {
         MessageModel savedMessage = messageService.findMessageById(message.getId());
         ChatRoomModel chatRoomModel = findChatRoomById(chatRoomId);
         MessagePermissionIdentity identity = getMessagePermissionIdentity(guestId, session);
-        requireChatRoomPermission(MessageOperation.EDIT, chatRoomModel.getRoomType(), savedMessage, null, identity);
+        validateMessageReference(chatRoomId, savedMessage.getId());
+        requireChatRoomPermission(MessageOperation.EDIT, chatRoomModel, savedMessage, null, identity);
 
         MessageModel editedMessage = messageService.editMessage(message);
-        ChatRoomMessageResponse response = toChatRoomMessageResponse(chatRoomId, chatRoomModel.getRoomType(),
+        ChatRoomMessageResponse response = toChatRoomMessageResponse(chatRoomId, chatRoomModel,
                 messageReactionService.getMessageResponseWithAuthorAndReactions(editedMessage, ContextType.CHAT,
                         identity.userId(), identity.guestSessionId()),
                 getQuotedMessage(editedMessage), identity);
@@ -187,11 +228,12 @@ public class ChatRoomService {
         MessageModel message = messageService.findMessageById(messageId);
         ChatRoomModel chatRoomModel = findChatRoomById(chatRoomId);
         MessagePermissionIdentity identity = getMessagePermissionIdentity(guestId, session);
-        requireChatRoomPermission(MessageOperation.DELETE, chatRoomModel.getRoomType(), message, null, identity);
+        validateMessageReference(chatRoomId, messageId);
+        requireChatRoomPermission(MessageOperation.DELETE, chatRoomModel, message, null, identity);
 
         messageService.deleteMessage(messageId);
         MessageModel deletedMessage = messageService.findMessageById(messageId);
-        ChatRoomMessageResponse response = toChatRoomMessageResponse(chatRoomId, chatRoomModel.getRoomType(),
+        ChatRoomMessageResponse response = toChatRoomMessageResponse(chatRoomId, chatRoomModel,
                 messageReactionService.getMessageResponseWithAuthorAndReactions(deletedMessage, ContextType.CHAT,
                         identity.userId(), identity.guestSessionId()),
                 getQuotedMessage(deletedMessage), identity);
@@ -201,7 +243,7 @@ public class ChatRoomService {
     public void publishChatRoomTyping(Long chatRoomId, String guestId, Long userId) {
         ChatRoomModel chatRoomModel = findChatRoomById(chatRoomId);
         MessagePermissionIdentity identity = getMessagePermissionIdentity(guestId, userId);
-        requireChatRoomPermission(MessageOperation.GET, chatRoomModel.getRoomType(), null, null, identity);
+        requireChatRoomPermission(MessageOperation.GET, chatRoomModel, null, null, identity);
 
         MessageModel typingMessage = new MessageModel();
         typingMessage.setContextId(chatRoomId);
@@ -209,7 +251,7 @@ public class ChatRoomService {
         typingMessage.setUserId(identity.userId());
         typingMessage.setGuestSessionId(identity.guestSessionId());
 
-        messagingTemplate.convertAndSend(WebSocketDestination.TOPIC + "/chatroom-typing", Map.of(
+        messagingTemplate.convertAndSend(roomDestination(chatRoomId, "typing"), Map.of(
                 "chatRoomId", chatRoomId,
                 "author", messageAuthorService.getMessageResponsesWithAuthors(List.of(typingMessage)).get(0)
                         .getAuthor()));
@@ -237,7 +279,7 @@ public class ChatRoomService {
         MessageOperation operation = getReactionOperation(reaction.getEmoji(), savedReaction);
         ChatRoomModel chatRoomModel = findChatRoomById(chatRoomId);
         MessagePermissionIdentity identity = getMessagePermissionIdentity(guestId, session);
-        requireChatRoomPermission(operation, chatRoomModel.getRoomType(), null, savedReaction.orElse(null), identity);
+        requireChatRoomPermission(operation, chatRoomModel, null, savedReaction.orElse(null), identity);
 
         ReactionModel updatedReaction = switch (operation) {
             case REACTION_ADD -> reactionService.createReaction(chatRoomReaction);
@@ -262,7 +304,7 @@ public class ChatRoomService {
         if (!chatRoomId.equals(message.getContextId())) {
             throwNoMessagePermission();
         }
-        requireChatRoomPermission(MessageOperation.GET, chatRoomModel.getRoomType(), message, null, identity);
+        requireChatRoomPermission(MessageOperation.GET, chatRoomModel, message, null, identity);
 
         int normalizedLimit = Math.min(Math.max(limit, 1), 100);
         List<ReactionModel> reactions = reactionService.getReactionsByContext(messageId, ContextType.CHAT, emoji,
@@ -285,7 +327,7 @@ public class ChatRoomService {
         if (!chatRoomId.equals(message.getContextId())) {
             throwNoMessagePermission();
         }
-        requireChatRoomPermission(MessageOperation.GET, chatRoomModel.getRoomType(), message, null, identity);
+        requireChatRoomPermission(MessageOperation.GET, chatRoomModel, message, null, identity);
 
         return reactionService
                 .getReactionCountsByContextIds(List.of(messageId), ContextType.CHAT)
@@ -294,22 +336,32 @@ public class ChatRoomService {
     // ========== Reactions: end ==========
 
     // ========== Permissions: start ==========
-    private boolean hasChatRoomPermission(MessageOperation operation, RoomType roomType, MessageModel message,
+    public void requireChatRoomPermission(MessageOperation operation, Long chatRoomId, Long userId) {
+        requireChatRoomPermission(operation, findChatRoomById(chatRoomId), null, null,
+                new MessagePermissionIdentity(userId, null));
+    }
+
+    private boolean hasChatRoomPermission(MessageOperation operation, ChatRoomModel room, MessageModel message,
             ReactionModel reaction, MessagePermissionIdentity identity) {
         if (operation == null) {
             throw new RuntimeException("Message operation is required");
         }
 
-        return switch (roomType) {
+        return switch (room.getRoomType()) {
+            case PRIVATE -> identity.userId() != null
+                    && (identity.userId().equals(room.getFirstUserId())
+                            || identity.userId().equals(room.getSecondUserId()))
+                    && hasGlobalRoomMessagePermission(operation, message,
+                    reaction, identity.userId(), null);
             case GLOBAL -> hasGlobalRoomMessagePermission(operation, message, reaction, identity.userId(),
                     identity.guestSessionId());
-            default -> throw new RuntimeException("Unsupported chat room type");
+            default -> false;
         };
     }
 
-    private void requireChatRoomPermission(MessageOperation operation, RoomType roomType, MessageModel message,
+    private void requireChatRoomPermission(MessageOperation operation, ChatRoomModel room, MessageModel message,
             ReactionModel reaction, MessagePermissionIdentity identity) {
-        if (!hasChatRoomPermission(operation, roomType, message, reaction, identity)) {
+        if (!hasChatRoomPermission(operation, room, message, reaction, identity)) {
             throwNoMessagePermission();
         }
     }
@@ -342,7 +394,7 @@ public class ChatRoomService {
     }
 
     private boolean throwNoMessagePermission() {
-        throw new RuntimeException("No permission");
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No permission");
     }
 
     private boolean isAuthor(Long authorUserId, Long authorGuestSessionId, Long userId, Long guestSessionId) {
@@ -362,7 +414,7 @@ public class ChatRoomService {
     }
     // ========== Permissions: end ==========
 
-    private ChatRoomMessageResponse toChatRoomMessageResponse(Long chatRoomId, RoomType roomType,
+    private ChatRoomMessageResponse toChatRoomMessageResponse(Long chatRoomId, ChatRoomModel room,
             MessageWithAuthorAndReactionsResponse messageResponse, MessageWithAuthorResponse quotedMessage,
             MessagePermissionIdentity identity) {
         return new ChatRoomMessageResponse(
@@ -372,8 +424,14 @@ public class ChatRoomService {
                 quotedMessage,
                 messageResponse.getReactions(),
                 messageResponse.getMyReaction(),
-                hasChatRoomPermission(MessageOperation.EDIT, roomType, messageResponse.getMessage(), null, identity),
-                hasChatRoomPermission(MessageOperation.DELETE, roomType, messageResponse.getMessage(), null, identity));
+                hasChatRoomPermission(MessageOperation.EDIT, room, messageResponse.getMessage(), null, identity),
+                hasChatRoomPermission(MessageOperation.DELETE, room, messageResponse.getMessage(), null, identity));
+    }
+
+    private void validateMessageReference(Long chatRoomId, Long messageId) {
+        if (messageId != null && !chatRoomId.equals(findChatRoomMessageById(messageId).getContextId())) {
+            throwNoMessagePermission();
+        }
     }
 
     private Map<Long, MessageWithAuthorResponse> getQuotedMessagesById(List<MessageModel> messages) {
@@ -383,7 +441,10 @@ public class ChatRoomService {
                 .distinct()
                 .toList();
 
-        return messageAuthorService.getMessageResponsesWithAuthors(messageService.findMessagesByIds(quotedMessageIds))
+        return messageAuthorService.getMessageResponsesWithAuthors(messageService.findMessagesByIds(quotedMessageIds)
+                .stream().filter(quoted -> quoted.getContextType() == ContextType.CHAT && messages.stream().anyMatch(
+                        source -> quoted.getId().equals(source.getQuotedMessageId())
+                                && quoted.getContextId().equals(source.getContextId()))).toList())
                 .stream()
                 .collect(Collectors.toMap(
                         messageResponse -> messageResponse.getMessage().getId(),
@@ -405,13 +466,13 @@ public class ChatRoomService {
                 response.getAuthor(),
                 response.getQuotedMessage());
 
-        messagingTemplate.convertAndSend(WebSocketDestination.TOPIC + "/chatroom-message", Map.of(
+        messagingTemplate.convertAndSend(roomDestination(response.getChatRoomId(), "message"), Map.of(
                 "message", websocketResponse,
                 "action", action));
     }
 
     private void publishChatRoomReactionToWebSocket(Long chatRoomId, Long messageId, MessageOperation action) {
-        messagingTemplate.convertAndSend(WebSocketDestination.TOPIC + "/chatroom-message", Map.of(
+        messagingTemplate.convertAndSend(roomDestination(chatRoomId, "message"), Map.of(
                 "message", new ChatRoomMessageReactionWebSocketResponse(chatRoomId, messageId,
                         reactionService.getReactionCountsByContextIds(List.of(messageId), ContextType.CHAT)
                                 .getOrDefault(messageId, List.of())),
