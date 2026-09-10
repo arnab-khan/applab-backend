@@ -8,10 +8,15 @@ import java.util.stream.Collectors;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 import com.applab.applab_backend.auth.repository.UserRepository;
+import com.applab.applab_backend.auth.model.UserModel;
 
 import com.applab.applab_backend.auth.service.GuestSessionService;
 import com.applab.applab_backend.chatroom.dto.ChatRoomMessageReactionWebSocketResponse;
@@ -20,12 +25,14 @@ import com.applab.applab_backend.chatroom.dto.ChatRoomMessageSharedResponse;
 import com.applab.applab_backend.chatroom.dto.ChatRoomMessageViewerStateResponse;
 import com.applab.applab_backend.chatroom.dto.ChatRoomReactionPageResponse;
 import com.applab.applab_backend.chatroom.dto.ChatRoomRequest;
+import com.applab.applab_backend.chatroom.dto.ChatRoomConversationResponse;
 import com.applab.applab_backend.chatroom.dto.CursorPageResponse;
 import com.applab.applab_backend.chatroom.enums.RoomType;
 import com.applab.applab_backend.chatroom.model.ChatRoomModel;
 import com.applab.applab_backend.chatroom.repository.ChatRoomRepository;
 import com.applab.applab_backend.common.constant.WebSocketDestination;
 import com.applab.applab_backend.message.dto.MessageRequest;
+import com.applab.applab_backend.message.dto.MessageAuthorResponse;
 import com.applab.applab_backend.message.dto.MessagePermissionResponse;
 import com.applab.applab_backend.message.dto.MessageWithAuthorAndReactionsResponse;
 import com.applab.applab_backend.message.dto.MessageWithAuthorResponse;
@@ -63,6 +70,43 @@ public class ChatRoomService {
     private Long globalChatRoomId;
 
     // ========== Chat room: start ==========
+    public Page<ChatRoomConversationResponse> getAll(Pageable pageable, HttpSession session) {
+        Long userId = session == null ? null : (Long) session.getAttribute("userId");
+        if (userId == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Login required");
+        }
+        List<String> allowedSorts = List.of("id", "createdAt", "updatedAt", "name");
+        for (Sort.Order order : pageable.getSort()) {
+            if (!allowedSorts.contains(order.getProperty())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Invalid sort field: " + order.getProperty() + ". Allowed fields: " + allowedSorts);
+            }
+        }
+        Sort sort = pageable.getSort().isSorted() ? pageable.getSort() : Sort.by(Sort.Direction.DESC, "createdAt");
+        if (sort.getOrderFor("id") == null) {
+            sort = sort.and(Sort.by(Sort.Direction.DESC, "id"));
+        }
+        Pageable sortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
+        Page<ChatRoomModel> conversations = chatRoomRepository.findConversations(userId, RoomType.PRIVATE,
+                sortedPageable);
+        Map<Long, UserModel> usersById = userRepository.findAllById(conversations.getContent().stream()
+                .map(room -> userId.equals(room.getFirstUserId()) ? room.getSecondUserId() : room.getFirstUserId())
+                .distinct()
+                .toList())
+                .stream()
+                .collect(Collectors.toMap(UserModel::getId, Function.identity()));
+
+        return conversations.map(room -> {
+            Long otherUserId = userId.equals(room.getFirstUserId()) ? room.getSecondUserId() : room.getFirstUserId();
+            UserModel otherUser = usersById.get(otherUserId);
+            MessageAuthorResponse user = otherUser == null
+                    ? new MessageAuthorResponse("USER", otherUserId, null, null, null, null)
+                    : new MessageAuthorResponse("USER", otherUser.getId(), otherUser.getName(),
+                            otherUser.getUsername(), null, otherUser.getCompressedProfileImageUrl());
+            return new ChatRoomConversationResponse(room, user);
+        });
+    }
+
     public ChatRoomModel createChatRoom(ChatRoomRequest chatRoom) {
         if (chatRoom.getRoomType() == RoomType.GLOBAL && chatRoomRepository.existsByRoomType(RoomType.GLOBAL)) {
             return chatRoomRepository.findByRoomType(RoomType.GLOBAL).orElse(null);
