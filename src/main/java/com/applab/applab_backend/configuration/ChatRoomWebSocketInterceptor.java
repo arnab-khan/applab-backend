@@ -21,7 +21,8 @@ import lombok.RequiredArgsConstructor;
 @Component
 @RequiredArgsConstructor
 public class ChatRoomWebSocketInterceptor implements ChannelInterceptor {
-    private static final Pattern ROOM_TOPIC = Pattern.compile("/topic/chatroom/([1-9][0-9]*)/(message|typing)");
+    private static final Pattern ROOM_TOPIC = Pattern.compile("/topic/chatroom/([1-9][0-9]*)/(message|typing|read)");
+    private static final Pattern USER_CHAT_TOPIC = Pattern.compile("/topic/user/([1-9][0-9]*)/chatroom-update");
     private final ChatRoomService chatRoomService;
 
     @Override
@@ -35,12 +36,19 @@ public class ChatRoomWebSocketInterceptor implements ChannelInterceptor {
             if ("/topic/chatroom-message".equals(destination) || "/topic/chatroom-typing".equals(destination)) {
                 return message;
             }
+            Map<String, Object> attributes = accessor.getSessionAttributes();
+            Long userId = attributes != null && attributes.get("userId") instanceof Long id ? id : null;
+            Matcher userMatcher = USER_CHAT_TOPIC.matcher(destination == null ? "" : destination);
+            if (userMatcher.matches()) {
+                if (userId == null || !userId.equals(Long.valueOf(userMatcher.group(1)))) {
+                    throw new AccessDeniedException("Subscription not allowed");
+                }
+                return message;
+            }
             Matcher matcher = ROOM_TOPIC.matcher(destination == null ? "" : destination);
             if (!matcher.matches()) {
                 throw new AccessDeniedException("Subscription not allowed");
             }
-            Map<String, Object> attributes = accessor.getSessionAttributes();
-            Long userId = attributes != null && attributes.get("userId") instanceof Long id ? id : null;
             chatRoomService.requireChatRoomPermission(MessageOperation.GET, Long.valueOf(matcher.group(1)), userId);
         } else if (accessor.getCommand() == StompCommand.SEND
                 && !"/app/chatroom-typing".equals(destination)) {

@@ -5,5 +5,6 @@ import com.applab.applab_backend.message.dto.MessageAuthorResponse;
 
 public record ChatRoomConversationResponse(
         ChatRoomModel chatRoom,
-        MessageAuthorResponse user) {
+        MessageAuthorResponse user,
+        long unreadCount) {
 }

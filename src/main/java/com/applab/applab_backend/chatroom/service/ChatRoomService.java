@@ -3,6 +3,7 @@ package com.applab.applab_backend.chatroom.service;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.time.Instant;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -26,6 +27,9 @@ import com.applab.applab_backend.chatroom.dto.ChatRoomMessageViewerStateResponse
 import com.applab.applab_backend.chatroom.dto.ChatRoomReactionPageResponse;
 import com.applab.applab_backend.chatroom.dto.ChatRoomRequest;
 import com.applab.applab_backend.chatroom.dto.ChatRoomConversationResponse;
+import com.applab.applab_backend.chatroom.dto.ChatRoomConversationPageResponse;
+import com.applab.applab_backend.chatroom.dto.ChatRoomUnreadResponse;
+import com.applab.applab_backend.chatroom.dto.ChatRoomConversationWebSocketResponse;
 import com.applab.applab_backend.chatroom.dto.CursorPageResponse;
 import com.applab.applab_backend.chatroom.enums.RoomType;
 import com.applab.applab_backend.chatroom.model.ChatRoomModel;
@@ -70,7 +74,7 @@ public class ChatRoomService {
     private Long globalChatRoomId;
 
     // ========== Chat room: start ==========
-    public Page<ChatRoomConversationResponse> getAll(Pageable pageable, HttpSession session) {
+    public ChatRoomConversationPageResponse getAll(Pageable pageable, HttpSession session) {
         Long userId = session == null ? null : (Long) session.getAttribute("userId");
         if (userId == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Login required");
@@ -82,7 +86,7 @@ public class ChatRoomService {
                         "Invalid sort field: " + order.getProperty() + ". Allowed fields: " + allowedSorts);
             }
         }
-        Sort sort = pageable.getSort().isSorted() ? pageable.getSort() : Sort.by(Sort.Direction.DESC, "createdAt");
+        Sort sort = pageable.getSort().isSorted() ? pageable.getSort() : Sort.by(Sort.Direction.DESC, "updatedAt");
         if (sort.getOrderFor("id") == null) {
             sort = sort.and(Sort.by(Sort.Direction.DESC, "id"));
         }
@@ -96,15 +100,53 @@ public class ChatRoomService {
                 .stream()
                 .collect(Collectors.toMap(UserModel::getId, Function.identity()));
 
-        return conversations.map(room -> {
+        Page<ChatRoomConversationResponse> conversationResponses = conversations.map(room -> {
             Long otherUserId = userId.equals(room.getFirstUserId()) ? room.getSecondUserId() : room.getFirstUserId();
             UserModel otherUser = usersById.get(otherUserId);
             MessageAuthorResponse user = otherUser == null
                     ? new MessageAuthorResponse("USER", otherUserId, null, null, null, null)
                     : new MessageAuthorResponse("USER", otherUser.getId(), otherUser.getName(),
                             otherUser.getUsername(), null, otherUser.getCompressedProfileImageUrl());
-            return new ChatRoomConversationResponse(room, user);
+            long unreadCount = userId.equals(room.getFirstUserId())
+                    ? room.getFirstUserUnreadCount()
+                    : room.getSecondUserUnreadCount();
+            return new ChatRoomConversationResponse(room, user, unreadCount);
         });
+        return new ChatRoomConversationPageResponse(conversationResponses,
+                chatRoomRepository.getTotalUnreadCount(userId, RoomType.PRIVATE));
+    }
+
+    public void markConversationAsRead(Long chatRoomId, HttpSession session) {
+        Long userId = session == null ? null : (Long) session.getAttribute("userId");
+        if (userId == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Login required");
+        }
+        ChatRoomModel chatRoom = findChatRoomById(chatRoomId);
+        requireChatRoomPermission(MessageOperation.GET, chatRoom, null, null,
+                new MessagePermissionIdentity(userId, null));
+        chatRoomRepository.clearUnreadCount(chatRoomId, userId, RoomType.PRIVATE);
+        messagingTemplate.convertAndSend(roomDestination(chatRoomId, "read"), Map.of(
+                "chatRoomId", chatRoomId,
+                "userId", userId));
+    }
+
+    public ChatRoomUnreadResponse getUnreadCount(Long chatRoomId, HttpSession session) {
+        Long userId = session == null ? null : (Long) session.getAttribute("userId");
+        if (userId == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Login required");
+        }
+        ChatRoomModel chatRoom = findChatRoomById(chatRoomId);
+        requireChatRoomPermission(MessageOperation.GET, chatRoom, null, null,
+                new MessagePermissionIdentity(userId, null));
+
+        boolean isFirstUser = userId.equals(chatRoom.getFirstUserId());
+        long unreadCount = isFirstUser
+                ? chatRoom.getFirstUserUnreadCount()
+                : chatRoom.getSecondUserUnreadCount();
+        long otherUserUnreadCount = isFirstUser
+                ? chatRoom.getSecondUserUnreadCount()
+                : chatRoom.getFirstUserUnreadCount();
+        return new ChatRoomUnreadResponse(chatRoomId, unreadCount, otherUserUnreadCount == 0);
     }
 
     public ChatRoomModel createChatRoom(ChatRoomRequest chatRoom) {
@@ -221,11 +263,20 @@ public class ChatRoomService {
             message.setGuestSessionId(guestSessionService.getGuestSessionId(guestId));
         }
         MessageModel savedMessage = messageService.addMessage(message);
+        if (chatRoomModel.getRoomType() == RoomType.PRIVATE) {
+            chatRoomRepository.incrementRecipientUnreadCount(chatRoomId, userId, RoomType.PRIVATE, Instant.now());
+        } else {
+            chatRoomModel.setUpdatedAt(Instant.now());
+            chatRoomRepository.save(chatRoomModel);
+        }
         ChatRoomMessageResponse response = toChatRoomMessageResponse(chatRoomId, chatRoomModel,
                 messageReactionService.getMessageResponseWithAuthorAndReactions(savedMessage, ContextType.CHAT,
                         identity.userId(), identity.guestSessionId()),
                 getQuotedMessage(savedMessage), identity);
         publishChatRoomMessageToWebSocket(response, MessageOperation.ADD);
+        if (chatRoomModel.getRoomType() == RoomType.PRIVATE) {
+            publishConversationUpdate(response, userId);
+        }
         return response;
     }
 
@@ -504,15 +555,25 @@ public class ChatRoomService {
     }
 
     private void publishChatRoomMessageToWebSocket(ChatRoomMessageResponse response, MessageOperation action) {
-        ChatRoomMessageSharedResponse websocketResponse = new ChatRoomMessageSharedResponse(
+        messagingTemplate.convertAndSend(roomDestination(response.getChatRoomId(), "message"), Map.of(
+                "message", toSharedMessageResponse(response),
+                "action", action));
+    }
+
+    private void publishConversationUpdate(ChatRoomMessageResponse response, Long senderId) {
+        ChatRoomModel room = findChatRoomById(response.getChatRoomId());
+        Long recipientId = senderId.equals(room.getFirstUserId()) ? room.getSecondUserId() : room.getFirstUserId();
+
+        messagingTemplate.convertAndSend(WebSocketDestination.TOPIC + "/user/" + recipientId + "/chatroom-update",
+                new ChatRoomConversationWebSocketResponse(room.getId()));
+    }
+
+    private ChatRoomMessageSharedResponse toSharedMessageResponse(ChatRoomMessageResponse response) {
+        return new ChatRoomMessageSharedResponse(
                 response.getChatRoomId(),
                 response.getMessage(),
                 response.getAuthor(),
                 response.getQuotedMessage());
-
-        messagingTemplate.convertAndSend(roomDestination(response.getChatRoomId(), "message"), Map.of(
-                "message", websocketResponse,
-                "action", action));
     }
 
     private void publishChatRoomReactionToWebSocket(Long chatRoomId, Long messageId, MessageOperation action) {
