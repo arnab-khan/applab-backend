@@ -1,6 +1,7 @@
 package com.applab.applab_backend.chatroom.controller;
 
 import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -18,7 +19,9 @@ import com.applab.applab_backend.chatroom.dto.ChatRoomMessageViewerStateResponse
 import com.applab.applab_backend.chatroom.dto.ChatRoomReactionPageResponse;
 import com.applab.applab_backend.chatroom.dto.ChatRoomRequest;
 import com.applab.applab_backend.chatroom.dto.CursorPageResponse;
-import com.applab.applab_backend.chatroom.dto.GlobalChatRoomResponse;
+import com.applab.applab_backend.chatroom.dto.ChatRoomIdResponse;
+import com.applab.applab_backend.chatroom.dto.ChatRoomConversationPageResponse;
+import com.applab.applab_backend.chatroom.dto.ChatRoomUnreadResponse;
 import com.applab.applab_backend.chatroom.service.ChatRoomService;
 import com.applab.applab_backend.message.enums.MessageDirection;
 import com.applab.applab_backend.message.dto.EditMessageRequest;
@@ -39,9 +42,29 @@ import java.util.Map;
 public class ChatRoomController {
     private final ChatRoomService chatRoomService;
 
+    @GetMapping("/all")
+    public ChatRoomConversationPageResponse getAll(Pageable pageable, HttpSession session) {
+        return chatRoomService.getAll(pageable, session);
+    }
+
+    @GetMapping("/{chatRoomId}/unread-count")
+    public ChatRoomUnreadResponse getUnreadCount(@PathVariable Long chatRoomId, HttpSession session) {
+        return chatRoomService.getUnreadCount(chatRoomId, session);
+    }
+
+    @PatchMapping("/{chatRoomId}/read")
+    public void markAsRead(@PathVariable Long chatRoomId, HttpSession session) {
+        chatRoomService.markConversationAsRead(chatRoomId, session);
+    }
+
+    @PostMapping("/direct/{userId}")
+    public ChatRoomIdResponse getOrCreateDirectChat(@PathVariable Long userId, HttpSession session) {
+        return new ChatRoomIdResponse(chatRoomService.getOrCreateDirectChat(userId, session));
+    }
+
     @GetMapping("/global")
-    public GlobalChatRoomResponse getGlobalChatRoom() {
-        return new GlobalChatRoomResponse(chatRoomService.getGlobalChatRoomId());
+    public ChatRoomIdResponse getGlobalChatRoom() {
+        return new ChatRoomIdResponse(chatRoomService.getGlobalChatRoomId());
     }
 
     @MessageMapping("/chatroom-typing")

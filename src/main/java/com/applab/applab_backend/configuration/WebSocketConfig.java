@@ -7,6 +7,8 @@ import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
+import org.springframework.messaging.simp.config.ChannelRegistration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
@@ -21,6 +23,16 @@ import jakarta.servlet.http.Cookie;
 @Configuration
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+    private final ChatRoomWebSocketInterceptor chatRoomWebSocketInterceptor;
+
+    public WebSocketConfig(@Lazy ChatRoomWebSocketInterceptor chatRoomWebSocketInterceptor) {
+        this.chatRoomWebSocketInterceptor = chatRoomWebSocketInterceptor;
+    }
+
+    @Override
+    public void configureClientInboundChannel(ChannelRegistration registration) {
+        registration.interceptors(chatRoomWebSocketInterceptor);
+    }
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
@@ -38,7 +50,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         // Frontend connects here → http://localhost:8080/ws
         registry.addEndpoint("/ws")
                 .addInterceptors(new HttpSessionHandshakeInterceptor(), guestIdHandshakeInterceptor())
-                .setAllowedOriginPatterns("*");
+                .setAllowedOriginPatterns("http://localhost:*", "http://192.168.0.*:*", "https://applab.arnabkhan.in");
     }
 
     // Copies the cookie into the WebSocket session so STOMP handlers can
