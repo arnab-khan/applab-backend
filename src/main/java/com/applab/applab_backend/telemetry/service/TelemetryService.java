@@ -1,11 +1,19 @@
 package com.applab.applab_backend.telemetry.service;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.applab.applab_backend.auth.dto.UserListItemResponse;
+import com.applab.applab_backend.auth.repository.UserRepository;
+import com.applab.applab_backend.telemetry.dto.TelemetryResponse;
 
 import com.applab.applab_backend.telemetry.dto.TelemetryRequest;
 import com.applab.applab_backend.telemetry.dto.TelemetryLocalSessionResponse;
@@ -17,9 +25,11 @@ import com.applab.applab_backend.telemetry.repository.TelemetryRepository;
 @Service
 public class TelemetryService {
     private final TelemetryRepository telemetryRepository;
+    private final UserRepository userRepository;
 
-    public TelemetryService(TelemetryRepository telemetryRepository) {
+    public TelemetryService(TelemetryRepository telemetryRepository, UserRepository userRepository) {
         this.telemetryRepository = telemetryRepository;
+        this.userRepository = userRepository;
     }
 
     public List<TelemetryModel> addTelemetry(List<TelemetryRequest> telemetry) {
@@ -42,9 +52,11 @@ public class TelemetryService {
         return telemetryModel;
     }
 
-    public Page<TelemetryModel> getAll(
+    @Transactional(readOnly = true)
+    public Page<TelemetryResponse> getAll(
             TelemetryActivityType type,
             String localSessionId,
+            Boolean success,
             Pageable pageable) {
         List<String> allowedSorts = List.of("id", "createdAt", "updatedAt", "name", "type", "identityType", "route");
         for (Sort.Order order : pageable.getSort()) {
@@ -54,7 +66,16 @@ public class TelemetryService {
                                 ". Allowed fields: " + allowedSorts);
             }
         }
-        return telemetryRepository.searchTelemetry(type, localSessionId, pageable);
+        Page<TelemetryModel> telemetry = telemetryRepository.searchTelemetry(
+                type,
+                localSessionId,
+                success != null ? success.toString() : null,
+                pageable);
+        Map<Long, UserListItemResponse> users = getUsers(telemetry.getContent().stream()
+                .filter(item -> item.getIdentityType() == TelemetryIdentityType.USER)
+                .map(TelemetryModel::getIdentityId).toList());
+        return telemetry.map(item -> new TelemetryResponse(item,
+                item.getIdentityType() == TelemetryIdentityType.USER ? users.get(item.getIdentityId()) : null));
     }
 
     public Page<TelemetryLocalSessionResponse> getLocalSessions(Pageable pageable) {
@@ -68,5 +89,17 @@ public class TelemetryService {
             }
         }
         return telemetryRepository.searchTelemetryLocalSessions(pageable);
+    }
+
+    private Map<Long, UserListItemResponse> getUsers(List<Long> identityIds) {
+        List<Long> userIds = identityIds.stream().filter(Objects::nonNull).distinct().toList();
+        if (userIds.isEmpty()) {
+            return Map.of();
+        }
+        return userRepository.findAllById(userIds).stream().collect(Collectors.toMap(
+                user -> user.getId(),
+                user -> new UserListItemResponse(user.getId(), user.getName(), user.getUsername(),
+                        user.getBio(), user.getCreatedAt(), user.getUpdatedAt(),
+                        user.getProfileImageUrl(), user.getCompressedProfileImageUrl())));
     }
 }
