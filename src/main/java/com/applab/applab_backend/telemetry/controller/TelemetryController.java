@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.applab.applab_backend.telemetry.dto.TelemetryRequest;
 import com.applab.applab_backend.telemetry.dto.TelemetryLocalSessionResponse;
+import com.applab.applab_backend.telemetry.dto.TelemetryResponse;
 import com.applab.applab_backend.telemetry.enums.TelemetryActivityType;
 import com.applab.applab_backend.telemetry.enums.TelemetryIdentityType;
 import com.applab.applab_backend.telemetry.model.TelemetryModel;
@@ -33,11 +34,12 @@ public class TelemetryController {
     }
 
     @GetMapping("/all")
-    public Page<TelemetryModel> getAll(
+    public Page<TelemetryResponse> getAll(
             @RequestParam(required = false) TelemetryActivityType type,
             @RequestParam(required = false) String localSessionId,
+            @RequestParam(required = false) Boolean success,
             @PageableDefault(sort = "id", direction = Sort.Direction.DESC) Pageable pageable) {
-        return telemetryService.getAll(type, localSessionId, pageable);
+        return telemetryService.getAll(type, localSessionId, success, pageable);
     }
 
     @GetMapping("/local-sessions")

@@ -15,10 +15,13 @@ public interface TelemetryRepository extends JpaRepository<TelemetryModel, Long>
                 SELECT t FROM TelemetryModel t
                 WHERE (:type IS NULL OR t.type = :type)
                 AND (:localSessionId IS NULL OR t.localSessionId = :localSessionId)
+                AND (:success IS NULL OR
+                    CAST(FUNCTION('JSON_UNQUOTE', FUNCTION('JSON_EXTRACT', t.activity, '$.success')) AS string) = :success)
             """)
     Page<TelemetryModel> searchTelemetry(
             TelemetryActivityType type,
             String localSessionId,
+            String success,
             Pageable pageable);
 
     @Query("""
