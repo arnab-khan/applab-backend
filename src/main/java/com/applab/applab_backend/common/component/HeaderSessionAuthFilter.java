@@ -23,6 +23,7 @@ public class HeaderSessionAuthFilter extends OncePerRequestFilter {
         return path.startsWith("/auth/") || path.contains("/public/") || path.contains("/guest/")
                 || path.contains("/chatroom/") || path.startsWith("/telemetry/")
                 || path.startsWith("/ai/")
+                || path.equals("/error")
                 || path.startsWith("/email/")
                 || (path.equals("/connection/all") && request.getMethod().equals("GET"))
                 || path.equals("/ws") || path.startsWith("/ws/");

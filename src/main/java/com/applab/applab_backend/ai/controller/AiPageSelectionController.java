@@ -8,6 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import com.applab.applab_backend.ai.dto.AiPageSelectionRequest;
 import com.applab.applab_backend.ai.service.AiPageSelectionService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 @RestController
@@ -20,7 +21,8 @@ public class AiPageSelectionController {
     }
 
     @PostMapping(value = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter chat(@Valid @RequestBody AiPageSelectionRequest request) {
-        return service.chat(request);
+    public SseEmitter chat(@Valid @RequestBody AiPageSelectionRequest request,
+            HttpServletRequest httpRequest) {
+        return service.chat(request, httpRequest);
     }
 }

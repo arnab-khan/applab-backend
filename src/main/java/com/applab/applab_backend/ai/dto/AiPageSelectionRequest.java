@@ -1,26 +1,10 @@
 package com.applab.applab_backend.ai.dto;
 
-import java.util.List;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 public record AiPageSelectionRequest(
-        @NotBlank String message,
-        String currentRoute,
-        UserType userType,
-        List<ChatMessage> history) {
-
-    public enum UserType {
-        LOGGED_IN,
-        GUEST
-    }
-
-    public enum Role {
-        USER,
-        ASSISTANT
-    }
-
-    public record ChatMessage(
-            Role role,
-            String message) {
-    }
+        @NotBlank @Size(max = 250) String message,
+        @Size(max = 500) String currentRoute,
+        @Size(max = 3000) String history) {
 }
