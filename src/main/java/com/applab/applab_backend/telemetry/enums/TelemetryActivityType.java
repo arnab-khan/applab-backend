@@ -5,5 +5,7 @@ public enum TelemetryActivityType {
     API_CALL,
     ROUTER_CHANGE,
     ERROR,
-    WEBSOCKET_ERROR
+    WEBSOCKET_ERROR,
+    NETWORK_ERROR,
+    NETWORK_RESTORED
 }

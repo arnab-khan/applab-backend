@@ -1,6 +1,7 @@
 package com.applab.applab_backend.telemetry.service;
 
 import java.util.List;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -41,7 +42,17 @@ public class TelemetryService {
     private TelemetryModel toTelemetryModel(TelemetryRequest telemetry) {
         TelemetryModel telemetryModel = new TelemetryModel();
         telemetryModel.setName(telemetry.getName());
-        telemetryModel.setType(telemetry.getType());
+        String type = telemetry.getType();
+        if (type == null || type.isBlank()) {
+            throw new IllegalArgumentException("Telemetry type is required. Allowed types: "
+                    + Arrays.toString(TelemetryActivityType.values()) + ".");
+        }
+        try {
+            telemetryModel.setType(TelemetryActivityType.valueOf(type));
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("Invalid telemetry type '" + type + "'. Allowed types: "
+                    + Arrays.toString(TelemetryActivityType.values()) + ".");
+        }
         telemetryModel.setActivity(telemetry.getActivity());
         telemetryModel.setLocalSessionId(telemetry.getLocalSessionId());
         telemetryModel.setIdentityType(telemetry.getIdentityType());
