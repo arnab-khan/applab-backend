@@ -1,6 +1,5 @@
 package com.applab.applab_backend.telemetry.dto;
 
-import com.applab.applab_backend.telemetry.enums.TelemetryActivityType;
 import com.applab.applab_backend.telemetry.enums.TelemetryIdentityType;
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -14,7 +13,7 @@ public class TelemetryRequest {
     private String name;
 
     @NotNull
-    private TelemetryActivityType type;
+    private String type;
 
     @NotNull
     private JsonNode activity;
