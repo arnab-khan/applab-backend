@@ -1,11 +1,19 @@
 package com.applab.applab_backend.ai.controller;
 
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.http.MediaType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import com.applab.applab_backend.ai.dto.AiChatSessionResponse;
+import com.applab.applab_backend.ai.dto.AiChatResponse;
 import com.applab.applab_backend.ai.dto.AiPageSelectionRequest;
 import com.applab.applab_backend.ai.service.AiPageSelectionService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,5 +32,18 @@ public class AiPageSelectionController {
     public SseEmitter chat(@Valid @RequestBody AiPageSelectionRequest request,
             HttpServletRequest httpRequest) {
         return service.chat(request, httpRequest);
+    }
+
+    @GetMapping("/sessions")
+    public Page<AiChatSessionResponse> getSessions(
+            @PageableDefault(sort = "lastMessageAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return service.getSessions(pageable);
+    }
+
+    @GetMapping("/all")
+    public Page<AiChatResponse> getAll(
+            @RequestParam(required = false) String aiSessionId,
+            @PageableDefault(sort = "id", direction = Sort.Direction.DESC) Pageable pageable) {
+        return service.getAll(aiSessionId, pageable);
     }
 }

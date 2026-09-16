@@ -37,6 +37,8 @@
   {
     "code": "PASSWORD_VERIFICATION_CHANGE_EMAIL",
     "route": "/auth/password-verification",
+    "directAccess": false,
+    "accessFrom": "/profile/edit-profile",
     "params": {
       "purpose": "CHANGE_EMAIL"
     },
@@ -47,6 +49,8 @@
   {
     "code": "EMAIL_ENTRY_SIGNUP",
     "route": "/auth/email-entry",
+    "directAccess": false,
+    "accessFrom": "/auth/signup",
     "params": {
       "purpose": "SIGNUP"
     },
@@ -57,6 +61,8 @@
   {
     "code": "EMAIL_ENTRY_EDIT_PROFILE",
     "route": "/auth/email-entry",
+    "directAccess": false,
+    "accessFrom": "/auth/password-verification?purpose=CHANGE_EMAIL",
     "params": {
       "purpose": "EDIT_PROFILE"
     },
@@ -77,6 +83,8 @@
   {
     "code": "OTP_VERIFICATION_SIGNUP",
     "route": "/auth/otp-verification",
+    "directAccess": false,
+    "accessFrom": "/auth/email-entry?purpose=SIGNUP",
     "params": {
       "purpose": "SIGNUP"
     },
@@ -87,6 +95,8 @@
   {
     "code": "OTP_VERIFICATION_EDIT_PROFILE",
     "route": "/auth/otp-verification",
+    "directAccess": false,
+    "accessFrom": "/auth/email-entry?purpose=EDIT_PROFILE",
     "params": {
       "purpose": "EDIT_PROFILE"
     },
@@ -97,6 +107,8 @@
   {
     "code": "OTP_VERIFICATION_FORGOT_PASSWORD",
     "route": "/auth/otp-verification",
+    "directAccess": false,
+    "accessFrom": "/auth/email-entry?purpose=FORGOT_PASSWORD",
     "params": {
       "purpose": "FORGOT_PASSWORD"
     },
@@ -107,6 +119,8 @@
   {
     "code": "RESET_PASSWORD",
     "route": "/auth/reset-password",
+    "directAccess": false,
+    "accessFrom": "/auth/otp-verification?purpose=FORGOT_PASSWORD",
     "params": {
       "purpose": "FORGOT_PASSWORD"
     },
@@ -152,8 +166,8 @@
   {
     "code": "GLOBAL_CHAT",
     "route": "/chat/global",
-    "summary": "Global chat messages with reply, edit, delete, reactions and typing.",
-    "description": "scope=single shared public realtime chat room; visitors may read; sending/replying/reacting requires login or a guest session; interaction prompt offers router__/auth/login,router__/auth/signup,Continue as Guest; guest mode enables interaction without creating an account. identity=registered author name/avatar opens router__/user/:username with that username in new tab; guest displays Guest #id without profile link. message_display=text,author/avatar,creation timestamp,edited label,deleted-message placeholder; own_messages=distinct background. composer=plain text,max 255 characters in page UI,auto-resizing multiline; Enter sends,Shift+Enter inserts newline; empty/invalid/submitting disables send. live_updates=messages,edits,deletions,reactions without refresh. reply=quote message with cancelable preview; click quote to load and highlight original message,including surrounding history if not loaded. message_menu=click the three-dot menu on an own message to open a popup containing Edit and Delete. edit=own messages only; inline editor with save/cancel; existing quote can be removed during edit. delete=own messages only,confirmation required; content becomes deleted placeholder. reactions=one per user/guest per message; add/change/remove; quick button adds LIKE when absent or removes existing reaction; picker=LIKE,LOVE,LAUGH,WOW,THANKS,SALUTE,CLAP,DONE,THINKING,CRY,ANGRY,DISLIKE; per-emoji message counts update live. reaction_dialog=click reaction summary to view actor/avatar,reaction,time; All or specific-emoji filter with counts loaded on open/filter,not live updates in the open dialog; infinite scroll,newest first; registered actor opens router__/user/:username with that username in new tab. history=messages load with infinite scroll; chronological oldest-to-newest display; infinite scroll older above/newer below; Jump to bottom when away from end; auto-scroll on incoming messages when near bottom or on own new message. typing=animated dots with other participants' names; maximum 2 names displayed; more participants appear as name1,name2 and N others; current user's typing excluded. navigation=Global tab router__/chat/global,Direct tab router__/chat/direct with total unread direct-message badge. ui_search/filter/sort=none for messages; history order is automatic. unavailable=private read receipts,attachments,voice/video calls,online presence indicator.",
+    "summary": "Public global chat with guest posting, replies, edit, delete, reactions and typing.",
+    "description": "scope=single shared public realtime chat room; visitors may read; login is not mandatory for sending,replying or reacting because users can Continue as Guest; interaction prompt offers Continue as Guest,router__/auth/login or router__/auth/signup; guest mode enables interaction without creating an account. identity=registered author name/avatar opens router__/user/:username with that username in new tab; guest displays Guest #id without profile link. message_display=text,author/avatar,creation timestamp,edited label,deleted-message placeholder; own_messages=distinct background. composer=plain text,max 255 characters in page UI,auto-resizing multiline; Enter sends,Shift+Enter inserts newline; empty/invalid/submitting disables send. live_updates=messages,edits,deletions,reactions without refresh. reply=quote message with cancelable preview; click quote to load and highlight original message,including surrounding history if not loaded. message_menu=click the three-dot menu on an own message to open a popup containing Edit and Delete. edit=own messages only; inline editor with save/cancel; existing quote can be removed during edit. delete=own messages only,confirmation required; content becomes deleted placeholder. reactions=one per user/guest per message; add/change/remove; quick button adds LIKE when absent or removes existing reaction; picker=LIKE,LOVE,LAUGH,WOW,THANKS,SALUTE,CLAP,DONE,THINKING,CRY,ANGRY,DISLIKE; per-emoji message counts update live. reaction_dialog=click reaction summary to view actor/avatar,reaction,time; All or specific-emoji filter with counts loaded on open/filter,not live updates in the open dialog; infinite scroll,newest first; registered actor opens router__/user/:username with that username in new tab. history=messages load with infinite scroll; chronological oldest-to-newest display; infinite scroll older above/newer below; Jump to bottom when away from end; auto-scroll on incoming messages when near bottom or on own new message. typing=animated dots with other participants' names; maximum 2 names displayed; more participants appear as name1,name2 and N others; current user's typing excluded. navigation=Global tab router__/chat/global,Direct tab router__/chat/direct with total unread direct-message badge. ui_search/filter/sort=none for messages; history order is automatic. unavailable=private read receipts,attachments,voice/video calls,online presence indicator.",
     "access": "ALL"
   },
   {
