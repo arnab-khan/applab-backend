@@ -71,17 +71,21 @@ public class AiPageSelectionService {
 
     private List<String> selectPages(AiPageSelectionRequest request, String currentUserName) throws IOException {
         String prompt = """
+                TASK:
                 Select one or more options that match the user's latest message.
-                Use previous messages to understand follow-up messages.
-                Select only UNCLEAR_MESSAGE when the request is unclear or incomplete.
-                Select only FEATURE_NOT_AVAILABLE when the requested feature is not available.
 
-                PAGE_OPTIONS:
+                RULES:
+                1. Use previous messages to understand follow-up messages.
+                2. Select only UNCLEAR_MESSAGE when the request is unclear or incomplete.
+                3. Select only FEATURE_NOT_AVAILABLE when the requested feature is not available.
+
+                OPTIONS:
                 %s
 
+                CONTEXT:
                 CURRENT_ROUTE: %s
                 CURRENT_USER_NAME: %s
-                PREVIOUS_MESSAGES: %s
+                PREVIOUS_HISTORY: %s
                 LATEST_MESSAGE: %s
                 """.formatted(
                 pageOptions,
@@ -118,21 +122,29 @@ public class AiPageSelectionService {
         });
 
         String prompt = """
-                Answer the user's latest message as the AppLab assistant using the selected page details.
-                Treat only capabilities explicitly present in the selected descriptions as available.
-                If the requested feature is not present in those descriptions, clearly state that the feature is not available.
-                When directing the user to an option whose route is not null, write it as router__<route>.
-                Include the option's params in the route when present. Options with a null route must not use this format.
-                If a route contains a dynamic parameter such as :username, return the route only when its actual value is known from the conversation.
-                Replace every dynamic parameter with its actual value. Never return a route containing an unresolved :parameter.
-                Keep the response around 150 words.
+                TASK:
+                Answer the user's latest message as the AppLab assistant using the selected option details.
 
-                SELECTED_PAGE_DETAILS:
+                RULES:
+                1. Treat only capabilities explicitly present in the selected descriptions as available.
+                2. If the requested feature is absent from the selected descriptions, clearly state that it is unavailable.
+                3. Only when access is LOGGED_IN and CURRENT_USER_NAME is null, state that login is required and provide router__/auth/login. Never show this login requirement when CURRENT_USER_NAME is present.
+                4. If access is GUEST and CURRENT_USER_NAME is not null, clearly state that the page is available only while logged out.
+                5. Always answer the user's question with an explanation. A route may supplement the answer but must never replace the explanation.
+                6. Provide a route when the user requests navigation or a link, or when the route is useful for the answer. Avoid unnecessary routes. When providing a route, use router__<route>.
+                7. Include the option's params in the route when present. Never use the route format for an option whose route is null.
+                8. For a route containing a dynamic parameter such as :username, return the route only when its actual value is known from the conversation.
+                9. Replace every dynamic parameter with its actual value. Never return a route containing an unresolved :parameter.
+                10. Use a brief introduction only for greetings, general AppLab questions or when the user asks who you are. Otherwise start directly with the useful answer.
+                11. Be concise. Use fewer words when sufficient and approximately 150 words only when the answer needs that detail.
+
+                SELECTED_OPTIONS:
                 %s
 
+                CONTEXT:
                 CURRENT_ROUTE: %s
                 CURRENT_USER_NAME: %s
-                PREVIOUS_MESSAGES: %s
+                PREVIOUS_HISTORY: %s
                 LATEST_MESSAGE: %s
                 """.formatted(
                 selectedOptions,
@@ -158,12 +170,16 @@ public class AiPageSelectionService {
 
     private String createHistory(AiPageSelectionRequest request, String assistantMessage) {
         String prompt = """
+                TASK:
                 Create a short conversation history for the next AI request.
-                Keep only important user intent,provided details,decisions and unresolved context.
-                Remove greetings,repetition and unnecessary wording.
-                Keep the history around 100 words.
-                Return only the history text.
 
+                RULES:
+                1. Keep only important user intent, provided details, decisions and unresolved context.
+                2. Remove greetings, repetition and unnecessary wording.
+                3. Keep the history around 100 words.
+                4. Return only the history text.
+
+                CONTEXT:
                 PREVIOUS_HISTORY: %s
                 LATEST_USER_MESSAGE: %s
                 LATEST_ASSISTANT_MESSAGE: %s
