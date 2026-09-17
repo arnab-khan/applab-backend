@@ -1,0 +1,215 @@
+[
+  {
+    "code": "GREETING",
+    "route": null,
+    "summary": "Greetings and casual chat.",
+    "description": "intent=greeting or casual conversation; triggers=hi,hello,thanks,goodbye,small talk without a page request; behavior=reply briefly in context as the AppLab assistant; navigation=none required; this option is not a page or an executable action.",
+    "access": "ALL"
+  },
+  {
+    "code": "APP_OVERVIEW",
+    "route": null,
+    "summary": "General information about AppLab.",
+    "description": "intent=user asks what AppLab is,what the application does or requests a general overview; app=web application for account authentication,profile management,user discovery,connections,personal todos,realtime communication and application telemetry; accounts=signup,login,email verification,password recovery and profile editing; community=browse public profiles and manage connection requests; productivity=logged-in users manage personal todo tasks; communication=global chat supports visitors and guest participation while direct private chat requires login; telemetry=public view of recorded application activity; public_routes=users router__/users,global chat router__/chat/global,telemetry router__/telemetry; login_required_routes=todos router__/todo,direct chats router__/chat/direct; behavior=briefly explain the application using only listed capabilities and include useful main page links when relevant; clearly distinguish public pages from pages requiring login; do not claim unsupported features or completed actions.",
+    "access": "ALL"
+  },
+  {
+    "code": "APP_TECHNOLOGY",
+    "route": null,
+    "summary": "App programming and technology stack.",
+    "description": "intent=user asks how AppLab is programmed,built,structured or which technologies,languages,libraries,database,APIs or communication methods it uses; frontend=Angular 21,TypeScript 5.9,Angular Material 21,Tailwind CSS 4,RxJS; backend=Java 21,Spring Boot 3.5,Spring Web REST APIs,Spring Data JPA,Spring Validation,Spring Security; database=MySQL; session_storage=Spring Session with Redis; realtime=Spring WebSocket with STOMP for chat messages,typing indicators,reactions and read updates; AI=Google GenAI Java SDK with Gemini,page selection followed by streamed assistant response over Server-Sent Events; email=Resend Java SDK; media=Thumbnailator backend image compression,browser-image-compression and ngx-image-cropper frontend processing; testing=Spring Boot Test and Vitest; behavior=answer only from these verified implementation facts,distinguish frontend from backend and do not invent deployment,hosting,cloud,CI/CD or unlisted technologies; navigation=none required unless user also requests an implemented page feature.",
+    "access": "ALL"
+  },
+  {
+    "code": "LOGIN",
+    "route": "/auth/login",
+    "summary": "User login.",
+    "description": "intent=authenticate existing account; required_fields=username or email,password; input_rules=no whitespace; password_controls=show/hide; form_feedback=inline validation,scroll to invalid input,loading indicator and disabled form during submission; links=Create account router__/auth/signup,Forgot password router__/auth/email-entry?purpose=FORGOT_PASSWORD; success=authenticated session,then supplied original destination or router__/profile/view-profile.",
+    "access": "GUEST"
+  },
+  {
+    "code": "SIGNUP",
+    "route": "/auth/signup",
+    "summary": "Account signup with optional profile photo.",
+    "description": "intent=create account; required_fields=name,username,password,confirm password; ui_name=letters and spaces,max 30 characters,saved capitalized; ui_username=alphanumeric only,no spaces,3-20 characters,live availability check,saved lowercase; ui_password=6-20 characters,at least one letter and one number,no spaces; confirm_password=must match; password_controls=show/hide. optional_profile_photo=single image; desktop file picker,mobile Choose File or Camera; draggable/resizable square crop with fixed 1:1 aspect; Crop produces JPEG resized to width 500 with automatic compression; local preview,replace or remove before signup. submit=validation/loading feedback; success=account created and logged in,optional photo uploaded,automatic current-password verification,then router__/auth/email-entry?purpose=SIGNUP; signup_email=optional subsequent step and can be skipped without losing account; supplied original destination preserved through flow; existing_account_link=router__/auth/login.",
+    "access": "GUEST"
+  },
+  {
+    "code": "PASSWORD_VERIFICATION_CHANGE_EMAIL",
+    "route": "/auth/password-verification",
+    "directAccess": false,
+    "accessFrom": "/profile/edit-profile",
+    "params": {
+      "purpose": "CHANGE_EMAIL"
+    },
+    "summary": "Password check for email change.",
+    "description": "intent=authorize adding or changing account email; purpose=CHANGE_EMAIL; requires=logged-in session; input=current password(required,no whitespace); controls=show/hide password,Verify and Continue with loading and validation feedback; Forgot password opens router__/auth/email-entry?purpose=FORGOT_PASSWORD; success=authorize email change for current session for 1 hour,then router__/auth/email-entry?purpose=EDIT_PROFILE; supplied original destination preserved; invalid purpose opens router__/404; incorrect password produces error feedback.",
+    "access": "LOGGED_IN"
+  },
+  {
+    "code": "EMAIL_ENTRY_SIGNUP",
+    "route": "/auth/email-entry",
+    "directAccess": false,
+    "accessFrom": "/auth/signup",
+    "params": {
+      "purpose": "SIGNUP"
+    },
+    "summary": "Signup email entry.",
+    "description": "intent=add optional email after signup; purpose=SIGNUP; requires=logged-in account and password verification established by signup flow; input=email(required to send OTP),valid format,no spaces,trimmed and lowercase,unique across accounts; Send OTP=send verification code and open router__/auth/otp-verification?purpose=SIGNUP with verification request,destination email and server OTP metadata; Skip for now=continue to supplied original destination or router__/profile/view-profile; account already exists if email is skipped; email may be added later from router__/profile/edit-profile; email ownership is confirmed only through OTP verification.",
+    "access": "LOGGED_IN"
+  },
+  {
+    "code": "EMAIL_ENTRY_EDIT_PROFILE",
+    "route": "/auth/email-entry",
+    "directAccess": false,
+    "accessFrom": "/auth/password-verification?purpose=CHANGE_EMAIL",
+    "params": {
+      "purpose": "EDIT_PROFILE"
+    },
+    "summary": "Profile email entry.",
+    "description": "intent=add or replace account email; purpose=EDIT_PROFILE; prerequisite=logged-in session authorized through router__/auth/password-verification?purpose=CHANGE_EMAIL; input=new email(required),valid format,no spaces,trimmed and lowercase,unique across accounts,different from current email; Send OTP=sends verification code to new email and opens router__/auth/otp-verification?purpose=EDIT_PROFILE with verification request,destination email and server OTP metadata; current_email=changes only after successful OTP verification; supplied original destination preserved in flow; skip_control=unavailable.",
+    "access": "LOGGED_IN"
+  },
+  {
+    "code": "EMAIL_ENTRY_FORGOT_PASSWORD",
+    "route": "/auth/email-entry",
+    "params": {
+      "purpose": "FORGOT_PASSWORD"
+    },
+    "summary": "Forgot-password email entry.",
+    "description": "intent=start password recovery; purpose=FORGOT_PASSWORD; guest_input=registered account email(required),valid format,no spaces,trimmed and lowercase; logged_in_with_email=own email prefilled and readonly; logged_in_without_email=No email linked notice,reset request form unavailable; Send OTP=send recovery code to matching registered email and open router__/auth/otp-verification?purpose=FORGOT_PASSWORD with verification request,destination email and server OTP metadata; supplied original destination preserved; skip_control=unavailable.",
+    "access": "ALL"
+  },
+  {
+    "code": "OTP_VERIFICATION_SIGNUP",
+    "route": "/auth/otp-verification",
+    "directAccess": false,
+    "accessFrom": "/auth/email-entry?purpose=SIGNUP",
+    "params": {
+      "purpose": "SIGNUP"
+    },
+    "summary": "Signup email OTP.",
+    "description": "intent=verify optional signup email; purpose=SIGNUP; prerequisite=OTP request from router__/auth/email-entry?purpose=SIGNUP and logged-in session; required_context=verification request; input=numeric OTP with server-defined length(currently 6 digits); display=destination email,send status,expiry countdown in minutes/seconds,resend cooldown in seconds,remaining resends; current_server_limits=OTP valid 10 minutes,resend cooldown 60 seconds,maximum 3 resends. controls=Verify OTP,Resend OTP,Skip email verification for now; resend=disabled during cooldown or after resends exhausted,clears OTP input and refreshes OTP metadata; successful_verification=saves verified email,then supplied original destination or router__/profile/view-profile; skip=continue without verifying email to supplied original destination or router__/profile/view-profile; missing purpose/verification request opens router__/404; incorrect/expired OTP produces error feedback.",
+    "access": "LOGGED_IN"
+  },
+  {
+    "code": "OTP_VERIFICATION_EDIT_PROFILE",
+    "route": "/auth/otp-verification",
+    "directAccess": false,
+    "accessFrom": "/auth/email-entry?purpose=EDIT_PROFILE",
+    "params": {
+      "purpose": "EDIT_PROFILE"
+    },
+    "summary": "Profile email OTP.",
+    "description": "intent=verify new account email; purpose=EDIT_PROFILE; prerequisite=OTP request from router__/auth/email-entry?purpose=EDIT_PROFILE and original logged-in session; required_context=verification request; input=numeric OTP with server-defined length(currently 6 digits); display=destination email,send status,expiry countdown in minutes/seconds,resend cooldown in seconds,remaining resends; current_server_limits=OTP valid 10 minutes,resend cooldown 60 seconds,maximum 3 resends. controls=Verify OTP,Resend OTP; resend=disabled during cooldown or after resends exhausted,clears OTP input and refreshes OTP metadata; successful_verification=replace account email,then router__/profile/edit-profile; skip_control=unavailable; missing purpose/verification request opens router__/404; incorrect/expired OTP produces error feedback.",
+    "access": "LOGGED_IN"
+  },
+  {
+    "code": "OTP_VERIFICATION_FORGOT_PASSWORD",
+    "route": "/auth/otp-verification",
+    "directAccess": false,
+    "accessFrom": "/auth/email-entry?purpose=FORGOT_PASSWORD",
+    "params": {
+      "purpose": "FORGOT_PASSWORD"
+    },
+    "summary": "Forgot-password OTP.",
+    "description": "intent=verify password-recovery OTP; purpose=FORGOT_PASSWORD; prerequisite=OTP request from router__/auth/email-entry?purpose=FORGOT_PASSWORD; required_context=verification request; input=numeric OTP with server-defined length(currently 6 digits); display=destination email,send status,expiry countdown in minutes/seconds,resend cooldown in seconds,remaining resends; current_server_limits=OTP valid 10 minutes,resend cooldown 60 seconds,maximum 3 resends,maximum 5 incorrect attempts. controls=Verify OTP,Resend OTP; resend=disabled during cooldown or after resends exhausted,clears OTP input and refreshes OTP metadata; successful_verification=issue password-reset authorization valid 10 minutes,then router__/auth/reset-password?purpose=FORGOT_PASSWORD; skip_control=unavailable; missing purpose/verification request opens router__/404; incorrect/expired OTP produces error feedback.",
+    "access": "ALL"
+  },
+  {
+    "code": "RESET_PASSWORD",
+    "route": "/auth/reset-password",
+    "directAccess": false,
+    "accessFrom": "/auth/otp-verification?purpose=FORGOT_PASSWORD",
+    "params": {
+      "purpose": "FORGOT_PASSWORD"
+    },
+    "summary": "Reset forgotten password.",
+    "description": "intent=set new password after recovery verification; prerequisite=router__/auth/otp-verification?purpose=FORGOT_PASSWORD; required_context=valid password-reset authorization; required_fields=new password,confirm password; ui_password=6-100 characters,at least one letter and one number,no spaces; confirmation=must match; controls=show/hide password,Reset Password; display=reset-token expiry countdown in minutes/seconds; reset_token=valid 10 minutes,single use; success=password changed,then router__/auth/login with supplied original destination preserved; missing password-reset authorization opens router__/404; invalid/expired token produces error feedback.",
+    "access": "ALL"
+  },
+  {
+    "code": "VIEW_PROFILE",
+    "route": "/profile/view-profile",
+    "summary": "Own profile, logout, sharing and connection management.",
+    "description": "scope=own logged-in account; display=profile photo or initials,name,bio when present,user ID,username,own email or No email added,Created and Updated date/time,public profile share link. photo=click to enlarge,close using close button or backdrop; link_controls=copy public profile link to clipboard,browser-native share with unsupported notice if unavailable. page_actions=Edit profile router__/profile/edit-profile,Add Email when absent router__/auth/password-verification?purpose=CHANGE_EMAIL,Logout with Logout/Cancel confirmation. Connections button=opens own connection dialog; ui_status_tabs=Connections(accepted),Pending Requests,Rejected Requests; list_fields=photo/name,username,connection Created date/time,status action; photo opens viewer,person opens router__/user/:username for username; pagination=infinite scroll; fixed_order=most recently updated first; no connection search or manual sort control. connection_actions=incoming pending:Accept/Reject; outgoing pending:Cancel Request; accepted:Remove Connection; rejected outgoing:Resend Request; rejected incoming:Accept Request; action availability follows current relationship state.",
+    "access": "LOGGED_IN"
+  },
+  {
+    "code": "EDIT_PROFILE",
+    "route": "/profile/edit-profile",
+    "summary": "Edit own profile, photo, credentials, password or email.",
+    "description": "scope=edit own logged-in account; sections=Profile Photo,Profile Basics,Credentials,Email; Back opens router__/profile/view-profile. Profile_Basics=name(required,letters and spaces,max 30 characters,saved capitalized),bio(optional,max 80 characters); Save Basic Info saves this section. Credentials=username(optional,alphanumeric only,no spaces,3-20 characters,live availability check,current username recognized,saved lowercase),current password(required),new password(optional,6-20 characters,at least one letter and one number,no spaces),confirm password(required when new password supplied,must match); Save Credentials saves this section; all password fields support show/hide; Forgot password opens router__/auth/email-entry?purpose=FORGOT_PASSWORD; successful saves show feedback and clear password fields. Profile_Photo=Upload Photo/Edit Photo,Remove Photo with confirmation; single-image desktop file picker or mobile Choose File/Camera; draggable/resizable square crop,fixed 1:1 aspect,JPEG resized to width 500 with automatic compression; Save uploads photo independently of profile/credential forms. Email=display current email or No email added; Add Email/Change Email opens router__/auth/password-verification?purpose=CHANGE_EMAIL,then new email entry and OTP verification; email not changed by Save Basic Info or Save Credentials.",
+    "access": "LOGGED_IN"
+  },
+  {
+    "code": "USERS",
+    "route": "/users",
+    "summary": "Find and sort users.",
+    "description": "scope=public directory of registered users; search=case-insensitive partial match in name OR username,matching text highlighted; ui_sort=Joined date,ascending(oldest first) or descending(newest first),default newest first; pagination=infinite scroll; search/sort changes reload results. user_card=profile photo or initials,name,username,Joined date,View profile button; photo opens enlarged full image viewer with close/backdrop dismissal; View profile opens router__/user/:username for selected username; empty_state=No users found. ui_filters=no separate filters; ui_sort_fields=Joined date only.",
+    "access": "ALL"
+  },
+  {
+    "code": "PUBLIC_PROFILE",
+    "route": "/user/:username",
+    "summary": "Public user profile, connection requests and private chat.",
+    "description": "scope=public profile for route username; username required; own username redirects to router__/profile/view-profile; unresolved username shows Profile unavailable. display=profile photo or initials,name,bio when present,user ID,username,Created and Updated date/time,public share link; email=only visible to owner; photo opens enlarged image viewer with close/backdrop dismissal; share_controls=copy link to clipboard,browser-native share with unsupported notice if unavailable. Connections button=accepted connections only for another user's profile; rows=photo/name,username,Created date/time,link to router__/user/:username for each username; pagination=infinite scroll; fixed_order=most recently updated first; no search/manual sort/status tabs for another user's connections. logged_in_other_user_actions=Chat opens router__/user-chat/:username for this username,Connect sends request; guest Chat/Connect prompts router__/auth/login or router__/auth/signup. connection_states=none/canceled:Connect; outgoing pending:Pending menu > Cancel Request; incoming pending:Respond to Request > Accept/Reject; accepted:Connected > Remove Connection; rejected outgoing:Rejected > Resend Request; rejected incoming:You Rejected > Accept Request.",
+    "access": "ALL"
+  },
+  {
+    "code": "TODO",
+    "route": "/todo",
+    "summary": "Manage, search, filter and sort todo tasks.",
+    "description": "scope=current logged-in user's personal tasks; display=task cards with title,description,completion checkbox,Created timestamp,Updated timestamp; completed_indicator=checked checkbox and pale-green card. create=Create New Todo opens Add New Task dialog; fields=title(required,max 50 characters),description(required,multiline,max 255 characters); Add Task creates an incomplete task. edit=card three-dot menu > Edit opens prefilled Edit Task dialog; editable=title,description; Update Task saves. completion=checkbox toggles completed/incomplete and is disabled during save; success notification indicates new status. delete=card menu > Delete opens confirmation; Delete removes task,Cancel retains task. search=Search Todo; case-insensitive substring in title OR description; matches highlighted in both fields. ui_filter=Filter by Status:All(default),Completed,Incomplete; combines with search and sort. ui_sort=Created or Updated; ascending=oldest first,descending=newest first; default=Updated descending; clicking active sort toggles direction,switching field starts descending. pagination=Show More appends next page. search/filter/sort changes reload first page; create/edit/delete success refreshes list with cleared search,All status,Updated descending. task_details=read directly on cards; no standalone task detail page.",
+    "access": "LOGGED_IN"
+  },
+  {
+    "code": "GLOBAL_CHAT",
+    "route": "/chat/global",
+    "summary": "Public global chat with guest posting, replies, edit, delete, reactions and typing.",
+    "description": "scope=single shared public realtime chat room; visitors may read; login is not mandatory for sending,replying or reacting because users can Continue as Guest; interaction prompt offers Continue as Guest,router__/auth/login or router__/auth/signup; guest mode enables interaction without creating an account. identity=registered author name/avatar opens router__/user/:username with that username in new tab; guest displays Guest #id without profile link. message_display=text,author/avatar,creation timestamp,edited label,deleted-message placeholder; own_messages=distinct background. composer=plain text,max 255 characters in page UI,auto-resizing multiline; Enter sends,Shift+Enter inserts newline; empty/invalid/submitting disables send. live_updates=messages,edits,deletions,reactions without refresh. reply=quote message with cancelable preview; click quote to load and highlight original message,including surrounding history if not loaded. message_menu=click the three-dot menu on an own message to open a popup containing Edit and Delete. edit=own messages only; inline editor with save/cancel; existing quote can be removed during edit. delete=own messages only,confirmation required; content becomes deleted placeholder. reactions=one per user/guest per message; add/change/remove; quick button adds LIKE when absent or removes existing reaction; picker=LIKE,LOVE,LAUGH,WOW,THANKS,SALUTE,CLAP,DONE,THINKING,CRY,ANGRY,DISLIKE; per-emoji message counts update live. reaction_dialog=click reaction summary to view actor/avatar,reaction,time; All or specific-emoji filter with counts loaded on open/filter,not live updates in the open dialog; infinite scroll,newest first; registered actor opens router__/user/:username with that username in new tab. history=messages load with infinite scroll; chronological oldest-to-newest display; infinite scroll older above/newer below; Jump to bottom when away from end; auto-scroll on incoming messages when near bottom or on own new message. typing=animated dots with other participants' names; maximum 2 names displayed; more participants appear as name1,name2 and N others; current user's typing excluded. navigation=Global tab router__/chat/global,Direct tab router__/chat/direct with total unread direct-message badge. ui_search/filter/sort=none for messages; history order is automatic. unavailable=private read receipts,attachments,voice/video calls,online presence indicator.",
+    "access": "ALL"
+  },
+  {
+    "code": "DIRECT_CHATS",
+    "route": "/chat/direct",
+    "summary": "Private conversation list with unread counts; conversations cannot be deleted.",
+    "description": "scope=current logged-in user's private conversation list; guest_view=login/signup prompt via router__/auth/login or router__/auth/signup,guest conversations unavailable. row_fields=other participant avatar,name,username,conversation Updated timestamp,unread count badge; click_row=opens router__/user-chat/:username for that participant's username. fixed_order=most recently updated first; pagination=infinite scroll. live_updates=conversation events refresh list and unread total; Direct tab shows aggregate unread count; navigation=Direct router__/chat/direct,Global router__/chat/global. empty_state=No conversations yet; Find users opens router__/users. ui_search/filter/sort=none. unavailable=last-message text preview,conversation deletion,archive,block,mute; read tick belongs to router__/user-chat/:username,not this list.",
+    "access": "LOGGED_IN"
+  },
+  {
+    "code": "USER_CHAT",
+    "route": "/user-chat/:username",
+    "summary": "Private messages with reply, edit, delete, reactions, typing and read receipt.",
+    "description": "scope=private one-to-one realtime conversation; route_input=registered recipient username; access=logged-in participant only; self-chat unavailable; opening page loads existing room or creates a room for recipient. header=recipient avatar/name opens router__/user/:username for recipient in new tab; All chats returns router__/chat/direct. message_display=text,author/avatar,creation timestamp,edited label,deleted-message placeholder; own_messages=distinct background. composer=plain text,max 255 characters in page UI,auto-resizing multiline; Enter sends,Shift+Enter inserts newline; empty/invalid/submitting disables send. live_updates=messages,edits,deletions,reactions without refresh. reply=quote message with cancelable preview; click quote to load and highlight original message,including surrounding history if not loaded. message_menu=click the three-dot menu on an own message to open a popup containing Edit and Delete. edit=own messages only; inline editor with save/cancel; existing quote can be removed during edit. delete=own messages only,confirmation required; content becomes deleted placeholder. reactions=one per participant per message; add/change/remove; quick button adds LIKE when absent or removes existing reaction; picker=LIKE,LOVE,LAUGH,WOW,THANKS,SALUTE,CLAP,DONE,THINKING,CRY,ANGRY,DISLIKE; per-emoji message counts update live. reaction_dialog=click reaction summary to view actor/avatar,reaction,time; All or specific-emoji filter with counts loaded on open/filter,not live updates in the open dialog; infinite scroll,newest first; registered actor opens router__/user/:username with that username in new tab. history=messages load with infinite scroll; chronological oldest-to-newest display; infinite scroll older above/newer below; Jump to bottom when away from end; auto-scroll on incoming messages when near bottom or on own new message. typing=recipient name and animated dots; own typing excluded. unread=initial Unread messages separator; loaded/open conversation marks room read and updates unread total; incoming messages while open mark room read. read_receipt=one tick below latest displayed message only when that message belongs to current user; faded-white tick=Sent,emerald-green tick=Read; receipt updates live when recipient marks room read; room-level state based on recipient unread count,not a separate tick/read timestamp on every message. ui_search/filter/sort=none for messages; history order is automatic. unavailable=guest private chats,attachments,voice/video calls,online presence indicator.",
+    "access": "LOGGED_IN"
+  },
+  {
+    "code": "TELEMETRY",
+    "route": "/telemetry",
+    "summary": "Telemetry sessions, events and activity filters.",
+    "description": "scope=public view of recorded application activity; views=Sessions(default),All events. Sessions shows event count,browser/platform,first-seen and last-seen timestamps per browser session; fixed_order=most recently active session first; pagination=infinite scroll; Show Events opens selected session's event timeline dialog. All events shows actor name/avatar,type,event title,time,route,Failed or Restored badge when applicable,expandable Event details with event ID and activity JSON; fixed_order=newest events first; pagination=infinite scroll. session_dialog=events for selected session only; same event details plus identity type/ID; fixed_order=oldest events first; pagination=infinite scroll; arrows connect consecutive events when all action types are shown. ui_filters_in_both_event_views=All action types,Clicks(CLICK),API calls(API_CALL),Navigation(ROUTER_CHANGE),Errors(ERROR),Connection errors(WEBSOCKET_ERROR),Internet connection errors(NETWORK_ERROR),Internet connections restored(NETWORK_RESTORED). API_CALL adds result filter=All API results,Successful,Failed; changing action type resets result filter; changing a filter reloads first page. event_details_examples=API method,url,status when available,success,duration,error message when available; navigation from/to route; event-specific JSON for other types. failure_indicator=ERROR/WEBSOCKET_ERROR/NETWORK_ERROR or activity.success=false uses rose highlight/Failed; NETWORK_RESTORED uses green border/Restored. actor_links=registered-user author opens router__/user/:username for that username in new tab; guest/anonymous actors have no profile link. ui_sort=automatic orders only; no selectable sort or text search. freshness=frontend batches recorded activity and flushes on page exit; displayed lists load on entry/view/filter/pagination,not a live event subscription.",
+    "access": "ALL"
+  },
+  {
+    "code": "NOT_FOUND",
+    "route": "/404",
+    "summary": "Unknown page.",
+    "description": "purpose=unmatched route fallback; display=Error 404,Page Not Found,The page you are looking for does not exist; also reached when an authentication flow redirects here for missing or invalid flow parameters; page_controls=none; no search,filters,sorting or recovery form.",
+    "access": "ALL"
+  },
+  {
+    "code": "UNCLEAR_MESSAGE",
+    "route": null,
+    "summary": "Unclear or incomplete request.",
+    "description": "intent=user message is ambiguous,has multiple possible meanings,is incomplete,too vague or lacks required context to identify the requested AppLab feature or action; behavior=ask one short specific clarification question that distinguishes the likely meanings; do not guess the feature or action,claim an action was completed or create a clickable page reference until the request is clear; navigation=none.",
+    "access": "ALL"
+  },
+  {
+    "code": "FEATURE_NOT_AVAILABLE",
+    "route": null,
+    "summary": "Use when none of the above app features match.",
+    "description": "intent=requested feature/action absent from all listed implemented page capabilities; behavior=state that the requested capability is unavailable only when its absence is clear; if uncertain whether the request matches an available capability,ask one short clarification question before deciding; offer an actually supported alternative only when relevant; never invent features or report an unsupported action as completed; navigation=this option has no page and must not become a clickable link.",
+    "access": "ALL"
+  }
+]

@@ -56,6 +56,12 @@ public class SecurityConfig {
                         // Allow telemetry endpoints without any authentication
                         .requestMatchers("/telemetry/**").permitAll()
 
+                        // Allow AI endpoints without any authentication
+                        .requestMatchers("/ai/**").permitAll()
+
+                        // Allow Spring error responses without authentication
+                        .requestMatchers("/error").permitAll()
+
                         // Allow email endpoints without any authentication
                         .requestMatchers("/email/**").permitAll()
 
