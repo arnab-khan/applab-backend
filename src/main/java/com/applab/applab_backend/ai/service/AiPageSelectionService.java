@@ -157,12 +157,13 @@ public class AiPageSelectionService {
                 LOGGED_IN_USER_NAME: %s
                 PREVIOUS_HISTORY: %s
                 LATEST_MESSAGE: %s
-                """.formatted(
-                pageOptions,
-                request.currentRoute(),
-                loggedInUserName,
-                request.history(),
-                request.message());
+                """
+                .formatted(
+                        pageOptions,
+                        request.currentRoute(),
+                        loggedInUserName,
+                        request.history(),
+                        request.message());
 
         var config = GenerateContentConfig.builder()
                 .responseMimeType("application/json")
@@ -212,12 +213,13 @@ public class AiPageSelectionService {
                 LOGGED_IN_USER_NAME: %s
                 PREVIOUS_HISTORY: %s
                 LATEST_MESSAGE: %s
-                """.formatted(
-                selectedOptions,
-                request.currentRoute(),
-                loggedInUserName,
-                request.history(),
-                request.message());
+                """
+                .formatted(
+                        selectedOptions,
+                        request.currentRoute(),
+                        loggedInUserName,
+                        request.history(),
+                        request.message());
 
         StringBuilder assistantMessage = new StringBuilder();
         var config = GenerateContentConfig.builder()
